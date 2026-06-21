@@ -634,6 +634,16 @@ function PrayerScreen({
     setCollecting(false)
   }, [day.dayIndex])
 
+  useEffect(() => {
+    if (!published) return
+    PRAYER_IMAGE_SLOTS.forEach((slot) => {
+      const src = getPrayerImage(state, day.dayIndex, slot)
+      if (!src) return
+      const preload = new Image()
+      preload.src = src
+    })
+  }, [day.dayIndex, published, state])
+
   return (
     <Panel wide>
       <BackButton onClick={onBack}>홈으로</BackButton>
@@ -667,7 +677,7 @@ function PrayerScreen({
 
             <div className="overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-card">
               {image ? (
-                <img src={image} alt={`${day.monthDay} ${slotLabel(page)}`} className="h-auto w-full object-contain" />
+                <img src={image} alt={`${day.monthDay} ${slotLabel(page)}`} loading="eager" decoding="async" className="h-auto w-full object-contain" />
               ) : (
                 <div className="grid min-h-[560px] place-items-center p-6 text-center">
                   <div>
@@ -1374,5 +1384,6 @@ function StatCard({ label, value }: { label: string; value: string }) {
 
 function slotLabel(slot: PrayerImageSlot) {
   if (slot === 1) return '기도문'
-  return '말씀과 기도팁'
+  if (slot === 2) return '말씀과 기도팁'
+  return '유치부 기도요청'
 }

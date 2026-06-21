@@ -106,9 +106,10 @@ export const COLLECTION_GEMS = Array.from({ length: 20 }, (_, index) => {
 export const DEV_SAMPLE_PRAYER_IMAGES = {
   1: '/images/prayers/day-01/01.png',
   2: '/images/prayers/day-01/02.png',
+  3: '/images/prayers/day-01/03.png',
 } as const
 
-export const PRAYER_IMAGE_SLOTS = [1, 2] as const
+export const PRAYER_IMAGE_SLOTS = [1, 2, 3] as const
 export type PrayerImageSlot = (typeof PRAYER_IMAGE_SLOTS)[number]
 
 export const PRAYER_DAYS: PrayerDay[] = Array.from({ length: 20 }, (_, index) => {

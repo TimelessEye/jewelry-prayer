@@ -59,7 +59,7 @@ create table if not exists public.prayer_days (
 create table if not exists public.prayer_images (
   id uuid primary key default gen_random_uuid(),
   prayer_day_id uuid not null references public.prayer_days(id) on delete cascade,
-  slot int not null check (slot in (1, 2)),
+  slot int not null check (slot in (1, 2, 3)),
   storage_path text not null,
   uploaded_at timestamptz not null default now(),
   unique (prayer_day_id, slot)

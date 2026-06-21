@@ -286,7 +286,7 @@ export async function savePrayerImage(dayIndex: number, slot: PrayerImageSlot, f
     const extension = file.name.split('.').pop()?.toLowerCase() || 'png'
     const storagePath = `prayers/day-${String(dayIndex).padStart(2, '0')}/slot-${slot}.${extension}`
     const upload = await supabase.storage.from('prayer-images').upload(storagePath, file, {
-      cacheControl: '60',
+      cacheControl: '604800',
       upsert: true,
     })
     throwIfError(upload.error)
