@@ -27,12 +27,12 @@ export async function shareCompletionCard(participant: Participant, blob: Blob) 
   const file = new File([blob], `${participant.displayName}-기도보석-완주.png`, { type: 'image/png' })
   const text =
     participant.type === 'teacher'
-      ? `보석기도 챌린지 완주를 축하합니다. ${participant.displayName}`
-      : `보석보다 귀한 어린이 ${participant.displayName} 보석기도 챌린지 완주를 축하합니다☺️♥️`
+      ? `20일 보석기도 완주를 축하합니다. ${participant.displayName}`
+      : `보석보다 귀한 어린이 ${participant.displayName} 20일 보석기도 완주를 축하합니다☺️♥️`
 
   if (navigator.canShare?.({ files: [file] })) {
     await navigator.share({
-      title: '기도보석 챌린지 완주',
+      title: '20일 보석기도 완주',
       text,
       files: [file],
     })
@@ -53,7 +53,7 @@ async function drawParentCardV2(ctx: CanvasRenderingContext2D, participant: Part
   ctx.drawImage(template, 0, 0, 1080, 1440)
   drawParentTemplateMessage(ctx, [
     `보석보다 귀한 어린이 ${participant.displayName}`,
-    '보석기도 챌린지 완주를 축하합니다☺️♥️',
+    '20일 보석기도 완주를 축하합니다☺️♥️',
   ])
 }
 

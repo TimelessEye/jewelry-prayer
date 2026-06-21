@@ -245,7 +245,7 @@ export default function App() {
                 } else if (participant.type === 'teacher' && selectedDay.dayIndex === PRAYER_DAYS.length) {
                   await finalizeChallenge(participant.id)
                   openCompleteWithCeremony(loadState(), participant)
-                  showToast('보석기도 챌린지를 마감했어요.')
+                  showToast('20일 보석기도를 마감했어요.')
                 } else {
                   setHighlightDayIndex(selectedDay.dayIndex)
                   setScreen('collection')
@@ -332,7 +332,7 @@ function StartScreen({
     <section className="grid w-full max-w-md content-center gap-4">
       <div className="text-center">
         <p className="text-xs font-black uppercase tracking-[0.2em] text-jewel-brown">{ORG_LABEL}</p>
-        <h1 className="mt-2 text-4xl font-black leading-tight text-jewel-ink">기도보석 챌린지</h1>
+        <h1 className="mt-2 text-4xl font-black leading-tight text-jewel-ink">20일 보석기도</h1>
         <p className="mt-2 text-sm font-medium text-stone-600">20일 동안 다음세대를 위해 기도하고 보석을 모아요.</p>
         <p className="mt-3 rounded-full bg-white/70 px-4 py-2 text-sm font-black text-jewel-brown shadow-sm ring-1 ring-jewel-gold/25">
           운영기간: 6/22(월)~7/11(토)까지 20일 연속
@@ -557,7 +557,7 @@ function HomeScreen({
           <MiniGemRow participant={participant} state={state} />
           {teacherFinalized && (
             <div className="mt-5 rounded-2xl border border-jewel-gold/40 bg-jewel-cream p-4">
-              <p className="text-sm font-black text-jewel-brown">챌린지를 마감했어요.</p>
+              <p className="text-sm font-black text-jewel-brown">20일 보석기도를 마감했어요.</p>
               <p className="mt-1 text-xs font-bold leading-relaxed text-stone-600">교사 완주 카드를 다시 볼 수 있어요.</p>
               <button
                 type="button"
@@ -570,9 +570,9 @@ function HomeScreen({
           )}
           {teacherCanFinishAsIs && (
             <div className="mt-5 rounded-2xl border border-jewel-gold/40 bg-jewel-cream p-4">
-              <p className="text-sm font-black text-jewel-brown">오늘은 챌린지 마지막 날입니다.</p>
+              <p className="text-sm font-black text-jewel-brown">오늘은 20일 보석기도 마지막 날입니다.</p>
               <p className="mt-1 text-xs font-bold leading-relaxed text-stone-600">
-                남은 기도를 하시겠어요, 아니면 이대로 챌린지를 마감하시겠습니까?
+                남은 기도를 하시겠어요, 아니면 이대로 20일 보석기도를 마감하시겠습니까?
               </p>
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
                 <button type="button" onClick={onCollection} className="rounded-xl bg-white px-3 py-3 text-sm font-black text-jewel-brown ring-1 ring-jewel-gold/35">
@@ -654,7 +654,7 @@ function PrayerScreen({
         <>
           {participant.type === 'teacher' && isFinalDay && count < PRAYER_DAYS.length && (
             <div className="mx-auto mb-4 max-w-2xl rounded-2xl border border-jewel-gold/40 bg-jewel-cream p-4 text-sm font-bold leading-relaxed text-jewel-brown">
-              이 기도를 마친 뒤 남은 기도를 더 하거나, 이대로 챌린지를 마감할 수 있어요.
+              이 기도를 마친 뒤 남은 기도를 더 하거나, 이대로 20일 보석기도를 마감할 수 있어요.
             </div>
           )}
           <div className="mx-auto max-w-2xl">
@@ -862,8 +862,8 @@ function CompletionScreen({
     <Panel>
       <BackButton onClick={onBack}>홈으로</BackButton>
       <PageTitle
-        eyebrow={teacherCanSeeCard && count < PRAYER_DAYS.length ? '챌린지 마감' : '완주 축하'}
-        title={teacherCanSeeCard && count < PRAYER_DAYS.length ? '챌린지를 마감했어요' : count === 20 ? '기도보석을 모두 모았어요' : '아직 모으는 중이에요'}
+        eyebrow={teacherCanSeeCard && count < PRAYER_DAYS.length ? '기도 마감' : '완주 축하'}
+        title={teacherCanSeeCard && count < PRAYER_DAYS.length ? '20일 보석기도를 마감했어요' : count === 20 ? '기도보석을 모두 모았어요' : '아직 모으는 중이에요'}
         description={`${count}/20개의 기도보석을 수집했습니다.`}
       />
       {count < 20 && !teacherCanSeeCard ? (
@@ -888,7 +888,7 @@ function CompletionScreen({
         <div className="text-center">
           <div className="parent-completion-card shadow-card">
             <img src={ASSETS.parentCardTemplate} alt="" className="parent-completion-template" />
-            <p className="parent-completion-message">보석보다 귀한 어린이 {participant.displayName}<br />보석기도 챌린지 완주를 축하합니다☺️♥️</p>
+            <p className="parent-completion-message">보석보다 귀한 어린이 {participant.displayName}<br />20일 보석기도 완주를 축하합니다☺️♥️</p>
           </div>
           <PrimaryButton className="mt-5" onClick={share} disabled={busy}>
             {busy ? '이미지 만드는 중...' : '카톡으로 공유하기'}
@@ -936,7 +936,7 @@ function AdminScreen({ state, onBack, onRefresh }: { state: AppState; onBack: ()
     return (
       <Panel>
         <BackButton onClick={onBack}>돌아가기</BackButton>
-        <PageTitle eyebrow="숨긴 관리자" title="관리자 비밀번호" description="관리자만 챌린지 현황을 확인할 수 있어요." />
+        <PageTitle eyebrow="숨긴 관리자" title="관리자 비밀번호" description="관리자만 20일 보석기도 현황을 확인할 수 있어요." />
         <input value={code} onChange={(event) => setCode(event.target.value)} type="password" className="field" placeholder="비밀번호" />
         {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</p>}
         <PrimaryButton onClick={unlock}>관리자 열기</PrimaryButton>
@@ -947,7 +947,7 @@ function AdminScreen({ state, onBack, onRefresh }: { state: AppState; onBack: ()
   return (
     <Panel wide>
       <BackButton onClick={onBack}>돌아가기</BackButton>
-      <PageTitle eyebrow="관리자" title="기도보석 챌린지 현황" description="부모와 교사 통계를 분리해서 확인합니다." />
+      <PageTitle eyebrow="관리자" title="20일 보석기도 현황" description="부모와 교사 통계를 분리해서 확인합니다." />
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="부모 등록" value={`${parentParticipants.length}명`} />
         <StatCard label="교사 등록" value={`${teacherParticipants.length}/${TEACHERS.length}명`} />

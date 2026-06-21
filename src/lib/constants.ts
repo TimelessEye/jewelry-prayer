@@ -1,6 +1,6 @@
 import type { PrayerDay, Student } from './types'
 
-export const APP_TITLE = '기도보석 챌린지'
+export const APP_TITLE = '20일 보석기도'
 export const ORG_LABEL = '용문교회 유치부'
 
 export const ASSETS = {

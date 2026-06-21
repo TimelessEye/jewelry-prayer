@@ -1,4 +1,4 @@
--- 용문교회 유치부 기도보석 챌린지 앱 스키마 초안
+-- 용문교회 유치부 20일 보석기도 앱 스키마 초안
 -- Supabase SQL Editor에서 적용한다. service_role 키는 클라이언트에 노출하지 않는다.
 
 create table if not exists public.classes (

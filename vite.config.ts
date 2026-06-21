@@ -10,9 +10,9 @@ export default defineConfig({
       injectRegister: null,
       includeAssets: ['icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png', 'icons/apple-touch-icon.png'],
       manifest: {
-        name: '용문교회 유치부 기도보석 챌린지',
-        short_name: '기도보석',
-        description: '20일 동안 다음세대를 위해 기도하고 보석을 모으는 챌린지',
+        name: '용문교회 유치부 20일 보석기도',
+        short_name: '20일 보석기도',
+        description: '20일 동안 다음세대를 위해 기도하고 보석을 모아요.',
         lang: 'ko',
         start_url: '/',
         scope: '/',
