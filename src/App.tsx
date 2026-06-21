@@ -57,6 +57,10 @@ type FinishCeremony = {
   count: number
   participantType: Participant['type']
 }
+type BeforeInstallPromptEvent = Event & {
+  prompt: () => Promise<void>
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>
+}
 
 const GEM_SLOT_POSITIONS = [
   { x: 23.2, y: 30.7 },
@@ -186,6 +190,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,#fff4d8_0,#fffaf1_32%,#f4efe9_100%)] text-jewel-ink">
       <InAppNotice />
+      <InstallNotice />
       <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 py-4 sm:px-6 lg:px-8">
         <TopBar
           participant={participant}
@@ -1186,6 +1191,88 @@ function InAppNotice() {
       <button type="button" onClick={() => setClosed(true)} aria-label="닫기" className="px-1">
         ×
       </button>
+    </div>
+  )
+}
+
+function InstallNotice() {
+  const [installEvent, setInstallEvent] = useState<BeforeInstallPromptEvent | null>(null)
+  const [closed, setClosed] = useState(() => localStorage.getItem('prayer-jewelry.installNotice.closed') === '1')
+  const [message, setMessage] = useState<string | null>(null)
+
+  useEffect(() => {
+    function handleBeforeInstallPrompt(event: Event) {
+      event.preventDefault()
+      setInstallEvent(event as BeforeInstallPromptEvent)
+      setClosed(false)
+    }
+
+    function handleAppInstalled() {
+      setInstallEvent(null)
+      setMessage('앱 설치가 완료됐어요.')
+      window.setTimeout(() => setMessage(null), 2500)
+    }
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+    window.addEventListener('appinstalled', handleAppInstalled)
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+      window.removeEventListener('appinstalled', handleAppInstalled)
+    }
+  }, [])
+
+  if (typeof navigator === 'undefined') return null
+
+  const ua = navigator.userAgent
+  const inApp = /KAKAOTALK|Instagram|FBAN|FBAV|Line\/|NAVER|Daum|; wv\)/i.test(ua)
+  const standalone =
+    window.matchMedia('(display-mode: standalone)').matches ||
+    Boolean((navigator as Navigator & { standalone?: boolean }).standalone)
+
+  if (message) {
+    return <div className="bg-jewel-ink px-4 py-2 text-center text-xs font-black text-white">{message}</div>
+  }
+
+  if (closed || standalone || inApp) return null
+
+  const isIos = /iPhone|iPad|iPod/i.test(ua)
+
+  async function install() {
+    if (!installEvent) {
+      setMessage(isIos ? 'Safari 하단 공유 버튼을 누른 뒤 홈 화면에 추가를 선택해 주세요.' : '브라우저 메뉴에서 앱 설치 또는 홈 화면에 추가를 눌러주세요.')
+      window.setTimeout(() => setMessage(null), 4200)
+      return
+    }
+
+    await installEvent.prompt()
+    const choice = await installEvent.userChoice
+    setInstallEvent(null)
+    if (choice.outcome === 'accepted') {
+      setMessage('앱 설치가 시작됐어요.')
+    } else {
+      setMessage('설치가 취소됐어요. 필요하면 다시 설치 버튼을 눌러주세요.')
+    }
+    window.setTimeout(() => setMessage(null), 3000)
+  }
+
+  function close() {
+    localStorage.setItem('prayer-jewelry.installNotice.closed', '1')
+    setClosed(true)
+  }
+
+  return (
+    <div className="bg-jewel-cream px-4 py-3 text-jewel-brown shadow-sm">
+      <div className="mx-auto flex max-w-6xl items-center gap-2 text-xs font-black sm:text-sm">
+        <span className="flex-1">
+          {isIos ? 'iPhone은 Safari에서 공유 버튼 → 홈 화면에 추가로 설치해 주세요.' : '홈 화면에서 바로 열려면 앱을 설치해 주세요.'}
+        </span>
+        <button type="button" onClick={install} className="rounded-xl bg-jewel-ink px-3 py-2 text-white shadow-sm">
+          앱 설치하기
+        </button>
+        <button type="button" onClick={close} aria-label="설치 안내 닫기" className="px-1 text-lg leading-none">
+          ×
+        </button>
+      </div>
     </div>
   )
 }
