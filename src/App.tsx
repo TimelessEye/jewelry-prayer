@@ -178,9 +178,9 @@ export default function App() {
   }
 
   function goHomeFromHeader() {
-    setScreen(participant ? 'home' : 'start')
+    setScreen('start')
     window.scrollTo({ top: 0, behavior: 'smooth' })
-    showToast('홈으로 이동했어요.')
+    showToast('처음 화면으로 이동했어요.')
   }
 
   return (
