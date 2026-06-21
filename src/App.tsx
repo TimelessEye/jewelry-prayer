@@ -896,6 +896,13 @@ function AdminScreen({ state, onBack, onRefresh }: { state: AppState; onBack: ()
     (participant) => getCompletionCount(participant.id, state) === 20 || hasFinalizedChallenge(participant.id, state),
   )
   const today = getCurrentPrayerDay()
+  const backupSummary = {
+    parentCount: parentParticipants.length,
+    teacherCount: teacherParticipants.length,
+    parentFinisherCount: parentFinishers.length,
+    teacherFinisherCount: teacherFinishers.length,
+    completionCount: state.completions.length,
+  }
 
   function unlock() {
     const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD?.trim()
@@ -932,6 +939,14 @@ function AdminScreen({ state, onBack, onRefresh }: { state: AppState; onBack: ()
         <StatCard label="부모 완주" value={`${parentFinishers.length}명`} />
         <StatCard label="교사 완주" value={`${teacherFinishers.length}명`} />
       </div>
+      <button
+        type="button"
+        onClick={() => downloadAdminBackup(state, backupSummary)}
+        className="flex items-center justify-center gap-2 rounded-2xl bg-jewel-ink px-5 py-4 text-sm font-black text-white shadow-card transition hover:bg-jewel-brown"
+      >
+        <Download size={18} />
+        현재 참여 기록 백업 다운로드
+      </button>
       <div className="grid gap-3 lg:grid-cols-2">
         <AdminTable title="부모 참여자" participants={parentParticipants} state={state} />
         <AdminTable title="교사 참여자" participants={teacherParticipants} state={state} />
@@ -946,6 +961,37 @@ function AdminScreen({ state, onBack, onRefresh }: { state: AppState; onBack: ()
       )}
     </Panel>
   )
+}
+
+function downloadAdminBackup(
+  state: AppState,
+  summary: {
+    parentCount: number
+    teacherCount: number
+    parentFinisherCount: number
+    teacherFinisherCount: number
+    completionCount: number
+  },
+) {
+  const createdAt = new Date()
+  const dateKey = createdAt.toISOString().slice(0, 10)
+  const backup = {
+    app: APP_TITLE,
+    organization: ORG_LABEL,
+    exportedAt: createdAt.toISOString(),
+    summary,
+    participants: state.participants,
+    completions: state.completions,
+    challengeClosures: state.challengeClosures,
+    prayerImages: state.prayerImages,
+  }
+  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `jewelry-prayer-backup-${dateKey}.json`
+  link.click()
+  URL.revokeObjectURL(url)
 }
 
 function AdminPrayerUpload({ state, today, onRefresh }: { state: AppState; today: PrayerDay; onRefresh: () => void }) {
