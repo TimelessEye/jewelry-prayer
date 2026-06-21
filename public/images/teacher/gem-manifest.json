@@ -1,0 +1,106 @@
+[
+  {
+    "id": 1,
+    "slug": "pink-diamond",
+    "nameKo": "핑크 다이아몬드",
+    "nameEn": "Pink Diamond",
+    "image": "gems/01-pink-diamond.png",
+    "description": "너무 적게 눌리면 투명하고, 너무 많이 눌리면 갈색이 되어 버리는 까다로운 분홍빛이라 가치가 높다."
+  },
+  {
+    "id": 2,
+    "slug": "blue-diamond",
+    "nameKo": "블루 다이아몬드",
+    "nameEn": "Blue Diamond",
+    "image": "gems/02-blue-diamond.png",
+    "description": "푸른빛은 극미량의 붕소가 만든다; 깊고 선명한 푸른 다이아일수록 자연이 거의 허락하지 않은 색이다."
+  },
+  {
+    "id": 3,
+    "slug": "red-diamond",
+    "nameKo": "레드 다이아몬드",
+    "nameEn": "Red Diamond",
+    "image": "gems/03-red-diamond.png",
+    "description": "붉은빛을 주된 색으로 띠는 다이아몬드는 컬러 다이아몬드 중에서도 손에 꼽히게 드물다."
+  },
+  {
+    "id": 4,
+    "slug": "alexandrite",
+    "nameKo": "알렉산드라이트",
+    "nameEn": "Alexandrite",
+    "image": "gems/04-alexandrite.png",
+    "description": "낮에는 초록빛, 밤에는 붉은빛으로 변해 '낮의 에메랄드, 밤의 루비'라 불린다."
+  },
+  {
+    "id": 5,
+    "slug": "paraiba-tourmaline",
+    "nameKo": "파라이바 투어멀린",
+    "nameEn": "Paraiba Tourmaline",
+    "image": "gems/05-paraiba-tourmaline.png",
+    "description": "구리 성분이 만든 전기 같은 네온 블루그린 빛 때문에, 보석 안에 작은 번개가 든 것처럼 보인다."
+  },
+  {
+    "id": 6,
+    "slug": "imperial-jade",
+    "nameKo": "임페리얼 제이드",
+    "nameEn": "Imperial Jade",
+    "image": "gems/06-imperial-jade.png",
+    "description": "반투명한 에메랄드빛 경옥은 중국 왕실이 탐냈던 최상급 옥으로 알려져 있다."
+  },
+  {
+    "id": 7,
+    "slug": "padparadscha-sapphire",
+    "nameKo": "파파라차 사파이어",
+    "nameEn": "Padparadscha Sapphire",
+    "image": "gems/07-padparadscha-sapphire.png",
+    "description": "연꽃을 뜻하는 이름처럼, 분홍과 주황 사이의 보기 드문 노을빛을 품은 사파이어다."
+  },
+  {
+    "id": 8,
+    "slug": "tanzanite",
+    "nameKo": "탄자나이트",
+    "nameEn": "Tanzanite",
+    "image": "gems/08-tanzanite.png",
+    "description": "현재 알려진 산지는 탄자니아 메렐라니 언덕 한 곳뿐이라, 태어난 곳부터 특별한 보석이다."
+  },
+  {
+    "id": 9,
+    "slug": "black-opal",
+    "nameKo": "블랙 오팔",
+    "nameEn": "Black Opal",
+    "image": "gems/09-black-opal.png",
+    "description": "어두운 바탕이 무지개빛을 더 선명하게 살려, 작은 밤하늘을 품은 보석처럼 보인다."
+  },
+  {
+    "id": 10,
+    "slug": "ruby",
+    "nameKo": "루비",
+    "nameEn": "Ruby",
+    "image": "gems/10-ruby.png",
+    "description": "크롬이 붉은색과 형광을 함께 만들어, 빛을 받을수록 속에서 불꽃처럼 타오른다."
+  },
+  {
+    "id": 11,
+    "slug": "emerald",
+    "nameKo": "에메랄드",
+    "nameEn": "Emerald",
+    "image": "gems/11-emerald.png",
+    "description": "내부의 포용물은 '자르댕', 곧 정원이라 불리며, 흠마저 하나뿐인 풍경이 된다."
+  },
+  {
+    "id": 12,
+    "slug": "grandidierite",
+    "nameKo": "그란디디어라이트",
+    "nameEn": "Grandidierite",
+    "image": "gems/12-grandidierite.png",
+    "description": "맑게 세공할 수 있는 원석이 매우 드물어, 바다빛을 지닌 숨은 보석으로 통한다."
+  },
+  {
+    "id": 13,
+    "slug": "taaffeite",
+    "nameKo": "타파이트",
+    "nameEn": "Taaffeite",
+    "image": "gems/13-taaffeite.png",
+    "description": "처음부터 원석이 아니라 이미 세공된 보석에서 발견된, 보석계의 반전 주인공이다."
+  }
+]
