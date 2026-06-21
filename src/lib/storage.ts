@@ -121,11 +121,26 @@ export function setCurrentParticipantId(id: string | null) {
 }
 
 export async function createParentParticipant(children: ParticipantChild[], guardianRole: GuardianRole) {
-  const state = loadState()
+  const state = await hydrateStateFromSupabase()
   const names = children.map((child) => child.name)
   const displayName = `${names.join('·')} ${guardianRole === 'mom' ? '맘' : '대디'}`
   const now = new Date().toISOString()
   const householdKey = names.slice().sort().join('|')
+  const existing = state.participants.find(
+    (participant) =>
+      participant.type === 'parent' &&
+      participant.guardianRole === guardianRole &&
+      participant.householdKey === householdKey,
+  )
+
+  if (existing) {
+    existing.lastSeenAt = now
+    saveState(state)
+    setCurrentParticipantId(existing.id)
+    await touchParticipant(existing.id, now)
+    return existing
+  }
+
   const participant: Participant = {
     id: crypto.randomUUID(),
     type: 'parent',

@@ -1197,7 +1197,14 @@ function InAppNotice() {
 
 function InstallNotice() {
   const [installEvent, setInstallEvent] = useState<BeforeInstallPromptEvent | null>(null)
-  const [closed, setClosed] = useState(() => localStorage.getItem('prayer-jewelry.installNotice.closed') === '1')
+  const installNoticeClosedKey = 'prayer-jewelry.installNotice.closed'
+  const [closed, setClosed] = useState(() => {
+    try {
+      return sessionStorage.getItem(installNoticeClosedKey) === '1'
+    } catch {
+      return false
+    }
+  })
   const [message, setMessage] = useState<string | null>(null)
 
   useEffect(() => {
@@ -1205,6 +1212,11 @@ function InstallNotice() {
       event.preventDefault()
       setInstallEvent(event as BeforeInstallPromptEvent)
       setClosed(false)
+      try {
+        sessionStorage.removeItem(installNoticeClosedKey)
+      } catch {
+        // Ignore storage restrictions in private browsing modes.
+      }
     }
 
     function handleAppInstalled() {
@@ -1256,7 +1268,11 @@ function InstallNotice() {
   }
 
   function close() {
-    localStorage.setItem('prayer-jewelry.installNotice.closed', '1')
+    try {
+      sessionStorage.setItem(installNoticeClosedKey, '1')
+    } catch {
+      // Ignore storage restrictions in private browsing modes.
+    }
     setClosed(true)
   }
 
