@@ -280,7 +280,12 @@ export default function App() {
 function TopBar({ participant, onHome, onAdmin }: { participant: Participant | null; onHome: () => void; onAdmin: () => void }) {
   return (
     <header className="flex items-center justify-between gap-3 rounded-2xl border border-white/70 bg-white/55 px-3 py-2 shadow-sm backdrop-blur">
-      <button type="button" onClick={onHome} className="flex items-center gap-2 text-left">
+      <button
+        type="button"
+        onClick={onHome}
+        className="flex min-w-0 flex-1 items-center gap-3 rounded-xl px-3 py-2 text-left transition hover:bg-white/70 focus:outline-none focus:ring-2 focus:ring-jewel-gold/50"
+        aria-label="메인 홈으로 이동"
+      >
         <span className="grid h-10 w-10 place-items-center rounded-full bg-jewel-gold/15 text-jewel-brown">
           <Gem size={22} />
         </span>
