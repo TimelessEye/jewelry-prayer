@@ -318,6 +318,9 @@ function StartScreen({
         <p className="text-xs font-black uppercase tracking-[0.2em] text-jewel-brown">{ORG_LABEL}</p>
         <h1 className="mt-2 text-4xl font-black leading-tight text-jewel-ink">기도보석 챌린지</h1>
         <p className="mt-2 text-sm font-medium text-stone-600">20일 동안 다음세대를 위해 기도하고 보석을 모아요.</p>
+        <p className="mt-3 rounded-full bg-white/70 px-4 py-2 text-sm font-black text-jewel-brown shadow-sm ring-1 ring-jewel-gold/25">
+          운영기간: 6/22(월)~7/11(토)까지 20일 연속
+        </p>
       </div>
 
       {current && (
