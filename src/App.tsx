@@ -177,13 +177,19 @@ export default function App() {
     }, 1900)
   }
 
+  function goHomeFromHeader() {
+    setScreen(participant ? 'home' : 'start')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+    showToast('홈으로 이동했어요.')
+  }
+
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,#fff4d8_0,#fffaf1_32%,#f4efe9_100%)] text-jewel-ink">
       <InAppNotice />
       <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 py-4 sm:px-6 lg:px-8">
         <TopBar
           participant={participant}
-          onHome={() => setScreen(participant ? 'home' : 'start')}
+          onHome={goHomeFromHeader}
           onAdmin={() => setScreen('admin')}
         />
 
