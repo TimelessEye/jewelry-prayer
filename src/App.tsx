@@ -205,7 +205,7 @@ export default function App() {
       setCollectionCeremony(null)
       setScreen('collection')
       showToast(message)
-    }, 2250)
+    }, 2850)
   }
 
   function goHomeFromHeader() {
@@ -1454,14 +1454,20 @@ function CollectModal({
 
 function CollectionCeremonyOverlay({ ceremony }: { ceremony: CollectionCeremony }) {
   const gemSrc = COLLECTION_GEMS[ceremony.dayIndex - 1] ?? ASSETS.baseGem
+  const trailGems = [1, 2, 3, 4, 5, 6]
   return (
     <div className="collection-ceremony fixed inset-0 z-[60] grid place-items-center bg-[#2d241d]/50 px-4 backdrop-blur-sm">
       <div className="collection-ceremony-panel">
         <div className="collection-ceremony-stage" aria-hidden="true">
-          <div className="collection-board-preview">
-            <img src={ASSETS.gemBoard} alt="" />
+          <div className="collection-light-burst" />
+          <div className="collection-orbit collection-orbit-a" />
+          <div className="collection-orbit collection-orbit-b" />
+          <div className="collection-portal">
+            <Gem size={46} />
           </div>
-          <div className="collection-target-glow" />
+          {trailGems.map((item) => (
+            <span key={item} className={`collection-trail-gem collection-trail-gem-${item}`} />
+          ))}
           <img src={gemSrc} alt="" className="collection-flying-gem" />
           <Sparkles className="collection-sparkle collection-sparkle-1" size={26} />
           <Sparkles className="collection-sparkle collection-sparkle-2" size={20} />
