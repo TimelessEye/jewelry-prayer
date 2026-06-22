@@ -1180,8 +1180,10 @@ function AdminPrayerUpload({ state, today, onRefresh }: { state: AppState; today
       await savePrayerText(dayIndex, body)
       setMessage(`${dayIndex}일차 기도문 텍스트를 저장했어요.`)
       onRefresh()
-    } catch {
+    } catch (error) {
+      console.error(error)
       setMessage('기도문 텍스트 저장에 실패했어요. 잠시 후 다시 시도해 주세요.')
+      throw error
     }
   }
 
@@ -1237,10 +1239,22 @@ function AdminPrayerTextEditor({
   onSave: (body: string) => void | Promise<void>
 }) {
   const [body, setBody] = useState(initialText)
+  const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'failed'>('idle')
 
   useEffect(() => {
     setBody(initialText)
+    setStatus('idle')
   }, [initialText])
+
+  async function handleSave() {
+    setStatus('saving')
+    try {
+      await onSave(body)
+      setStatus('saved')
+    } catch {
+      setStatus('failed')
+    }
+  }
 
   return (
     <div className="mt-3 rounded-xl bg-jewel-cream/70 p-3">
@@ -1256,11 +1270,14 @@ function AdminPrayerTextEditor({
       </label>
       <button
         type="button"
-        onClick={() => onSave(body)}
+        onClick={handleSave}
+        disabled={status === 'saving'}
         className="mt-2 rounded-xl bg-jewel-ink px-4 py-2 text-xs font-black text-white"
       >
-        기도문 텍스트 저장
+        {status === 'saving' ? '저장 중...' : '기도문 텍스트 저장'}
       </button>
+      {status === 'saved' && <p className="mt-2 text-xs font-black text-jewel-brown">저장했어요. 1페이지에 텍스트 기도문이 표시됩니다.</p>}
+      {status === 'failed' && <p className="mt-2 text-xs font-black text-red-700">저장에 실패했어요. 잠시 후 다시 눌러 주세요.</p>}
     </div>
   )
 }
