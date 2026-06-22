@@ -64,6 +64,10 @@ type FinishCeremony = {
   count: number
   participantType: Participant['type']
 }
+type CollectionCeremony = {
+  dayIndex: number
+  replay?: boolean
+}
 type PrayerTextSize = 'normal' | 'large'
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>
@@ -113,8 +117,10 @@ export default function App() {
   const [toast, setToast] = useState<string | null>(null)
   const [highlightDayIndex, setHighlightDayIndex] = useState<number | null>(null)
   const [finishCeremony, setFinishCeremony] = useState<FinishCeremony | null>(null)
+  const [collectionCeremony, setCollectionCeremony] = useState<CollectionCeremony | null>(null)
   const didApplyDevProgress = useRef(false)
   const finishTimerRef = useRef<number | null>(null)
+  const collectionTimerRef = useRef<number | null>(null)
 
   const participant = useMemo(
     () => state.participants.find((item) => item.id === currentId) ?? null,
@@ -146,6 +152,7 @@ export default function App() {
   useEffect(() => {
     return () => {
       if (finishTimerRef.current) window.clearTimeout(finishTimerRef.current)
+      if (collectionTimerRef.current) window.clearTimeout(collectionTimerRef.current)
     }
   }, [])
 
@@ -187,6 +194,18 @@ export default function App() {
       setFinishCeremony(null)
       setScreen('complete')
     }, 1900)
+  }
+
+  function openCollectionWithCeremony(nextState: AppState, dayIndex: number, message: string, replay = false) {
+    if (collectionTimerRef.current) window.clearTimeout(collectionTimerRef.current)
+    setState(nextState)
+    setHighlightDayIndex(dayIndex)
+    setCollectionCeremony({ dayIndex, replay })
+    collectionTimerRef.current = window.setTimeout(() => {
+      setCollectionCeremony(null)
+      setScreen('collection')
+      showToast(message)
+    }, 2250)
   }
 
   function goHomeFromHeader() {
@@ -256,17 +275,12 @@ export default function App() {
                   openCompleteWithCeremony(loadState(), participant)
                   showToast('20일 보석기도를 마감했어요.')
                 } else {
-                  setHighlightDayIndex(selectedDay.dayIndex)
-                  setScreen('collection')
-                  showToast(`${selectedDay.monthDay} 기도보석을 수집했어요.`)
+                  openCollectionWithCeremony(nextState, selectedDay.dayIndex, `${selectedDay.monthDay} 기도보석을 수집했어요.`)
                 }
               }}
               onReplayCollection={async () => {
                 const nextState = await hydrateStateFromSupabase()
-                setState(nextState)
-                setHighlightDayIndex(selectedDay.dayIndex)
-                setScreen('collection')
-                showToast(`${selectedDay.monthDay} 기도보석을 다시 보여드릴게요.`)
+                openCollectionWithCeremony(nextState, selectedDay.dayIndex, `${selectedDay.monthDay} 기도보석을 다시 보여드릴게요.`, true)
               }}
             />
           )}
@@ -299,6 +313,7 @@ export default function App() {
         </main>
       </div>
       {toast && <div className="fixed bottom-5 left-1/2 z-50 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 rounded-full bg-jewel-ink px-4 py-3 text-center text-sm font-bold text-white shadow-card">{toast}</div>}
+      {collectionCeremony && <CollectionCeremonyOverlay ceremony={collectionCeremony} />}
       {finishCeremony && <FinishCeremonyOverlay ceremony={finishCeremony} />}
     </div>
   )
@@ -1432,6 +1447,35 @@ function CollectModal({
             </>
           )}
         </div>
+      </div>
+    </div>
+  )
+}
+
+function CollectionCeremonyOverlay({ ceremony }: { ceremony: CollectionCeremony }) {
+  const gemSrc = COLLECTION_GEMS[ceremony.dayIndex - 1] ?? ASSETS.baseGem
+  return (
+    <div className="collection-ceremony fixed inset-0 z-[60] grid place-items-center bg-[#2d241d]/50 px-4 backdrop-blur-sm">
+      <div className="collection-ceremony-panel">
+        <div className="collection-ceremony-stage" aria-hidden="true">
+          <div className="collection-board-preview">
+            <img src={ASSETS.gemBoard} alt="" />
+          </div>
+          <div className="collection-target-glow" />
+          <img src={gemSrc} alt="" className="collection-flying-gem" />
+          <Sparkles className="collection-sparkle collection-sparkle-1" size={26} />
+          <Sparkles className="collection-sparkle collection-sparkle-2" size={20} />
+          <Sparkles className="collection-sparkle collection-sparkle-3" size={22} />
+          <Sparkles className="collection-sparkle collection-sparkle-4" size={18} />
+        </div>
+        <p className="mt-5 text-sm font-black text-jewel-brown">
+          {ceremony.replay ? '기도보석을 다시 꺼내 보는 중이에요' : '기도보석을 수집하는 중이에요'}
+        </p>
+        <h3 className="mt-1 text-2xl font-black leading-tight text-jewel-ink">
+          반짝이는 보석이
+          <br />
+          수집장으로 들어갑니다
+        </h3>
       </div>
     </div>
   )
