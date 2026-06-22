@@ -1505,7 +1505,7 @@ function CollectModal({
           {alreadyCollected ? (
             <>
               <button type="button" onClick={onHome} className="rounded-xl bg-stone-100 py-3 text-sm font-black text-stone-600">
-                홈으로 돌아가기
+                확인
               </button>
               <button type="button" onClick={onCollect} className="rounded-xl bg-jewel-ink py-3 text-sm font-black text-white">
                 다시보기

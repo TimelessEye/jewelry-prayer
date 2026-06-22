@@ -294,7 +294,7 @@ button {
 }
 
 .gem-slot-collected .gem-image {
-  animation: gem-collect 1200ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: gem-collect 1330ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
 .gem-slot-collected::after {
@@ -304,7 +304,7 @@ button {
   border-radius: 999px;
   border: 2px solid rgba(255, 222, 126, 0.95);
   box-shadow: 0 0 28px rgba(255, 208, 80, 0.85);
-  animation: collect-ring 1300ms ease-out both;
+  animation: collect-ring 1440ms ease-out both;
 }
 
 .completion-card-display {
