@@ -17,6 +17,7 @@ const EMPTY_STATE: AppState = {
   completions: [],
   challengeClosures: [],
   prayerImages: {},
+  prayerAudio: {},
 }
 
 type ParticipantRow = {
@@ -57,6 +58,11 @@ type PrayerImageRow = {
   public_url: string
 }
 
+type PrayerAudioRow = {
+  day_index: number
+  public_url: string
+}
+
 export function loadState(): AppState {
   try {
     const raw = localStorage.getItem(STATE_KEY)
@@ -81,12 +87,14 @@ export async function hydrateStateFromSupabase() {
       completionsResult,
       closuresResult,
       imagesResult,
+      audioResult,
     ] = await Promise.all([
       supabase.from('participants').select('*').order('created_at', { ascending: true }),
       supabase.from('participant_children').select('*').order('created_at', { ascending: true }),
       supabase.from('prayer_completions').select('*').order('completed_at', { ascending: true }),
       supabase.from('challenge_closures').select('*').order('finalized_at', { ascending: true }),
       supabase.from('prayer_images').select('day_index, slot, public_url').order('day_index', { ascending: true }),
+      supabase.from('prayer_audio').select('day_index, public_url').order('day_index', { ascending: true }),
     ])
 
     throwIfError(participantsResult.error)
@@ -101,6 +109,7 @@ export async function hydrateStateFromSupabase() {
       completions: (completionsResult.data ?? []) as CompletionRow[],
       closures: (closuresResult.data ?? []) as ChallengeClosureRow[],
       images: (imagesResult.data ?? []) as PrayerImageRow[],
+      audio: audioResult.error ? [] : (audioResult.data ?? []) as PrayerAudioRow[],
     })
     const merged = mergeStates(loadState(), remoteState)
     saveState(merged)
@@ -280,6 +289,10 @@ export function getPrayerImage(state: AppState, dayIndex: number, slot: PrayerIm
   return null
 }
 
+export function getPrayerAudio(state: AppState, dayIndex: number) {
+  return state.prayerAudio[String(dayIndex)] ?? null
+}
+
 export async function savePrayerImage(dayIndex: number, slot: PrayerImageSlot, file: File) {
   if (supabase) {
     const extension = file.name.split('.').pop()?.toLowerCase() || 'png'
@@ -332,6 +345,54 @@ export async function savePrayerImage(dayIndex: number, slot: PrayerImageSlot, f
     ...(state.prayerImages[String(dayIndex)] ?? {}),
     [String(slot)]: dataUrl,
   }
+  saveState(state)
+  return dataUrl
+}
+
+export async function savePrayerAudio(dayIndex: number, file: File) {
+  if (supabase) {
+    const extension = file.name.split('.').pop()?.toLowerCase() || 'mp3'
+    const storagePath = `audio/day-${String(dayIndex).padStart(2, '0')}/music.${extension}`
+    const current = await supabase
+      .from('prayer_audio')
+      .select('storage_path')
+      .eq('day_index', dayIndex)
+      .maybeSingle()
+    throwIfError(current.error)
+
+    const previousPath = current.data?.storage_path
+    if (previousPath && previousPath !== storagePath) {
+      const removal = await supabase.storage.from('prayer-audio').remove([previousPath])
+      throwIfError(removal.error)
+    }
+
+    const upload = await supabase.storage.from('prayer-audio').upload(storagePath, file, {
+      cacheControl: '604800',
+      upsert: true,
+    })
+    throwIfError(upload.error)
+
+    const { data } = supabase.storage.from('prayer-audio').getPublicUrl(storagePath)
+    const publicUrl = `${data.publicUrl}?v=${Date.now()}`
+    const { error } = await supabase.from('prayer_audio').upsert(
+      {
+        day_index: dayIndex,
+        storage_path: storagePath,
+        public_url: publicUrl,
+      },
+      { onConflict: 'day_index' },
+    )
+    throwIfError(error)
+
+    const state = loadState()
+    state.prayerAudio[String(dayIndex)] = publicUrl
+    saveState(state)
+    return publicUrl
+  }
+
+  const dataUrl = await fileToDataUrl(file)
+  const state = loadState()
+  state.prayerAudio[String(dayIndex)] = dataUrl
   saveState(state)
   return dataUrl
 }
@@ -438,12 +499,14 @@ function mapRemoteState({
   completions,
   closures,
   images,
+  audio,
 }: {
   participants: ParticipantRow[]
   children: ParticipantChildRow[]
   completions: CompletionRow[]
   closures: ChallengeClosureRow[]
   images: PrayerImageRow[]
+  audio: PrayerAudioRow[]
 }): AppState {
   const childrenByParticipant = new Map<string, ParticipantChild[]>()
   children.forEach((child) => {
@@ -463,6 +526,11 @@ function mapRemoteState({
       ...(prayerImages[String(image.day_index)] ?? {}),
       [String(image.slot)]: image.public_url,
     }
+  })
+
+  const prayerAudio: AppState['prayerAudio'] = {}
+  audio.forEach((item) => {
+    prayerAudio[String(item.day_index)] = item.public_url
   })
 
   return normalizeState({
@@ -489,6 +557,7 @@ function mapRemoteState({
       finalizedAt: closure.finalized_at,
     })),
     prayerImages,
+    prayerAudio,
   })
 }
 
@@ -500,6 +569,10 @@ function mergeStates(local: AppState, remote: AppState): AppState {
     prayerImages: {
       ...local.prayerImages,
       ...remote.prayerImages,
+    },
+    prayerAudio: {
+      ...local.prayerAudio,
+      ...remote.prayerAudio,
     },
   })
 }
@@ -517,6 +590,7 @@ function normalizeState(state: AppState): AppState {
     completions: [...state.completions].sort((a, b) => a.dayIndex - b.dayIndex),
     challengeClosures: [...state.challengeClosures],
     prayerImages: state.prayerImages ?? {},
+    prayerAudio: state.prayerAudio ?? {},
   }
 }
 

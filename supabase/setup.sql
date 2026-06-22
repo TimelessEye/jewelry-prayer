@@ -4,6 +4,7 @@ drop view if exists public.participant_progress;
 
 drop table if exists public.challenge_closures cascade;
 drop table if exists public.prayer_completions cascade;
+drop table if exists public.prayer_audio cascade;
 drop table if exists public.prayer_images cascade;
 drop table if exists public.prayer_days cascade;
 drop table if exists public.participant_children cascade;
@@ -77,6 +78,14 @@ create table if not exists public.prayer_images (
   unique (day_index, slot)
 );
 
+create table if not exists public.prayer_audio (
+  id uuid primary key default gen_random_uuid(),
+  day_index int not null unique references public.prayer_days(day_index) on delete cascade,
+  storage_path text not null,
+  public_url text not null,
+  uploaded_at timestamptz not null default now()
+);
+
 create table if not exists public.prayer_completions (
   id uuid primary key default gen_random_uuid(),
   participant_id uuid not null references public.participants(id) on delete cascade,
@@ -120,6 +129,7 @@ alter table public.participants enable row level security;
 alter table public.participant_children enable row level security;
 alter table public.prayer_days enable row level security;
 alter table public.prayer_images enable row level security;
+alter table public.prayer_audio enable row level security;
 alter table public.prayer_completions enable row level security;
 alter table public.challenge_closures enable row level security;
 
@@ -137,6 +147,8 @@ create policy public_read_prayer_days on public.prayer_days for select using (tr
 
 drop policy if exists public_read_prayer_images on public.prayer_images;
 create policy public_read_prayer_images on public.prayer_images for select using (true);
+drop policy if exists public_read_prayer_audio on public.prayer_audio;
+create policy public_read_prayer_audio on public.prayer_audio for select using (true);
 
 drop policy if exists public_read_participants on public.participants;
 create policy public_read_participants on public.participants for select using (true);
@@ -167,6 +179,8 @@ create policy public_insert_challenge_closures on public.challenge_closures for 
 
 drop policy if exists public_upsert_prayer_images on public.prayer_images;
 create policy public_upsert_prayer_images on public.prayer_images for all using (true) with check (true);
+drop policy if exists public_upsert_prayer_audio on public.prayer_audio;
+create policy public_upsert_prayer_audio on public.prayer_audio for all using (true) with check (true);
 
 insert into public.classes (id, name, sort_order) values
   ('sarang', '사랑반', 1),
@@ -265,6 +279,10 @@ insert into storage.buckets (id, name, public)
 values ('prayer-images', 'prayer-images', true)
 on conflict (id) do update set public = true;
 
+insert into storage.buckets (id, name, public)
+values ('prayer-audio', 'prayer-audio', true)
+on conflict (id) do update set public = true;
+
 drop policy if exists public_read_prayer_images_bucket on storage.objects;
 create policy public_read_prayer_images_bucket
 on storage.objects for select
@@ -280,3 +298,29 @@ create policy public_update_prayer_images_bucket
 on storage.objects for update
 using (bucket_id = 'prayer-images')
 with check (bucket_id = 'prayer-images');
+
+drop policy if exists public_delete_prayer_images_bucket on storage.objects;
+create policy public_delete_prayer_images_bucket
+on storage.objects for delete
+using (bucket_id = 'prayer-images');
+
+drop policy if exists public_read_prayer_audio_bucket on storage.objects;
+create policy public_read_prayer_audio_bucket
+on storage.objects for select
+using (bucket_id = 'prayer-audio');
+
+drop policy if exists public_insert_prayer_audio_bucket on storage.objects;
+create policy public_insert_prayer_audio_bucket
+on storage.objects for insert
+with check (bucket_id = 'prayer-audio');
+
+drop policy if exists public_update_prayer_audio_bucket on storage.objects;
+create policy public_update_prayer_audio_bucket
+on storage.objects for update
+using (bucket_id = 'prayer-audio')
+with check (bucket_id = 'prayer-audio');
+
+drop policy if exists public_delete_prayer_audio_bucket on storage.objects;
+create policy public_delete_prayer_audio_bucket
+on storage.objects for delete
+using (bucket_id = 'prayer-audio');

@@ -8,6 +8,9 @@ import {
   Gem,
   Heart,
   Lock,
+  Music2,
+  Pause,
+  Play,
   Settings,
   Share2,
   Sparkles,
@@ -40,6 +43,7 @@ import {
   getCompletionCount,
   getCurrentParticipantId,
   getParticipantCompletions,
+  getPrayerAudio,
   getPrayerImage,
   hydrateStateFromSupabase,
   hasFinalizedChallenge,
@@ -47,6 +51,7 @@ import {
   loadState,
   markParticipantSeen,
   savePrayerImage,
+  savePrayerAudio,
   setCurrentParticipantId,
 } from './lib/storage'
 import { createCompletionCard, shareCompletionCard } from './lib/share'
@@ -629,6 +634,7 @@ function PrayerScreen({
   const [page, setPage] = useState<PrayerImageSlot>(1)
   const published = isPublished(day)
   const image = getPrayerImage(state, day.dayIndex, page)
+  const audio = getPrayerAudio(state, day.dayIndex)
   const count = getCompletionCount(participant.id, state)
   const isFinalDay = day.dayIndex === PRAYER_DAYS.length
   const alreadyCollected = hasCompleted(participant.id, day.dayIndex, state)
@@ -675,6 +681,7 @@ function PrayerScreen({
             </div>
           )}
           <div className="mx-auto max-w-2xl">
+            {audio && <PrayerMusicControl src={audio} />}
             <div className="mb-3 flex items-center justify-between rounded-2xl bg-white/75 px-4 py-3 shadow-sm">
               <span className="text-sm font-black text-jewel-brown">
                 {page}/{PRAYER_IMAGE_SLOTS.length} · {slotLabel(page)}
@@ -767,6 +774,66 @@ function PrayerScreen({
         />
       )}
     </Panel>
+  )
+}
+
+function PrayerMusicControl({ src }: { src: string }) {
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const [playing, setPlaying] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setPlaying(false)
+    setError(null)
+    if (audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current.currentTime = 0
+    }
+  }, [src])
+
+  async function toggle() {
+    const audio = audioRef.current
+    if (!audio) return
+    setError(null)
+
+    if (playing) {
+      audio.pause()
+      setPlaying(false)
+      return
+    }
+
+    try {
+      await audio.play()
+      setPlaying(true)
+    } catch {
+      setError('재생이 막혔어요. 외부 브라우저에서 다시 열어주세요.')
+      setPlaying(false)
+    }
+  }
+
+  return (
+    <div className="mb-3 rounded-2xl border border-jewel-gold/25 bg-jewel-cream/80 px-4 py-3 shadow-sm">
+      <div className="flex items-center gap-2">
+        <Music2 size={18} className="shrink-0 text-jewel-brown" />
+        <button
+          type="button"
+          onClick={toggle}
+          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-jewel-ink px-4 py-3 text-sm font-black text-white shadow-sm"
+        >
+          {playing ? <Pause size={17} /> : <Play size={17} />}
+          {playing ? '기도음악 끄기' : '기도음악 켜기'}
+        </button>
+      </div>
+      {error && <p className="mt-2 text-xs font-bold text-red-700">{error}</p>}
+      <audio
+        ref={audioRef}
+        src={src}
+        preload="none"
+        onEnded={() => setPlaying(false)}
+        onPause={() => setPlaying(false)}
+        onPlay={() => setPlaying(true)}
+      />
+    </div>
   )
 }
 
@@ -1033,6 +1100,7 @@ function downloadAdminBackup(
     completions: state.completions,
     challengeClosures: state.challengeClosures,
     prayerImages: state.prayerImages,
+    prayerAudio: state.prayerAudio,
   }
   const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json;charset=utf-8' })
   const url = URL.createObjectURL(blob)
@@ -1057,6 +1125,17 @@ function AdminPrayerUpload({ state, today, onRefresh }: { state: AppState; today
     }
   }
 
+  async function uploadAudio(dayIndex: number, file: File | undefined) {
+    if (!file) return
+    try {
+      await savePrayerAudio(dayIndex, file)
+      setMessage(`${dayIndex}일차 기도음악을 저장했어요.`)
+      onRefresh()
+    } catch {
+      setMessage('기도음악 업로드에 실패했어요. 파일 형식과 인터넷 연결을 확인한 뒤 다시 시도해 주세요.')
+    }
+  }
+
   return (
     <div className="rounded-3xl border border-white/80 bg-white/75 p-4 shadow-card">
       <div className="flex items-center justify-between gap-3">
@@ -1070,10 +1149,11 @@ function AdminPrayerUpload({ state, today, onRefresh }: { state: AppState; today
         {PRAYER_DAYS.map((day) => {
           const slots = PRAYER_IMAGE_SLOTS
           const uploaded = slots.filter((slot) => getPrayerImage(state, day.dayIndex, slot)).length
+          const hasAudio = Boolean(getPrayerAudio(state, day.dayIndex))
           return (
             <details key={day.dayIndex} className="rounded-2xl border border-stone-200 bg-white p-3">
               <summary className="cursor-pointer text-sm font-black">
-                {day.monthDay} · {day.dayIndex}일차 <span className="text-jewel-brown">({uploaded}/{PRAYER_IMAGE_SLOTS.length})</span>
+                {day.monthDay} · {day.dayIndex}일차 <span className="text-jewel-brown">기도문 {uploaded}/{PRAYER_IMAGE_SLOTS.length} · 음악 {hasAudio ? '있음' : '없음'}</span>
               </summary>
               <div className="mt-3 grid gap-2 sm:grid-cols-3">
                 {slots.map((slot) => (
@@ -1083,6 +1163,10 @@ function AdminPrayerUpload({ state, today, onRefresh }: { state: AppState; today
                   </label>
                 ))}
               </div>
+              <label className="mt-2 block rounded-xl bg-jewel-cream p-3 text-xs font-bold text-jewel-brown">
+                기도음악
+                <input type="file" accept="audio/mpeg,audio/mp3,audio/mp4,audio/aac,audio/wav,audio/x-wav" className="mt-2 block w-full text-xs" onChange={(event) => uploadAudio(day.dayIndex, event.target.files?.[0])} />
+              </label>
             </details>
           )
         })}
