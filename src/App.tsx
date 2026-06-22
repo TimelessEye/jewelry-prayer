@@ -261,6 +261,13 @@ export default function App() {
                   showToast(`${selectedDay.monthDay} 기도보석을 수집했어요.`)
                 }
               }}
+              onReplayCollection={async () => {
+                const nextState = await hydrateStateFromSupabase()
+                setState(nextState)
+                setHighlightDayIndex(selectedDay.dayIndex)
+                setScreen('collection')
+                showToast(`${selectedDay.monthDay} 기도보석을 다시 보여드릴게요.`)
+              }}
             />
           )}
           {screen === 'collection' && participant && (
@@ -624,6 +631,7 @@ function PrayerScreen({
   onStateChange,
   onBack,
   onCollected,
+  onReplayCollection,
 }: {
   participant: Participant
   day: PrayerDay
@@ -631,6 +639,7 @@ function PrayerScreen({
   onStateChange: (state: AppState) => void
   onBack: () => void
   onCollected: () => void | Promise<void>
+  onReplayCollection: () => void | Promise<void>
 }) {
   const [collecting, setCollecting] = useState(false)
   const [collectingAlreadyCollected, setCollectingAlreadyCollected] = useState(false)
@@ -777,7 +786,7 @@ function PrayerScreen({
                   onClick={openCollectPrompt}
                   className="rounded-2xl bg-jewel-ink px-5 py-4 text-sm font-black text-white shadow-card"
                 >
-                  기도보석 수집하기
+                  확인
                 </button>
               )}
             </div>
@@ -803,6 +812,7 @@ function PrayerScreen({
               onStateChange(latestState)
               setCollecting(false)
               setCollectingAlreadyCollected(false)
+              await onReplayCollection()
               return
             }
             await completePrayerDay(participant.id, day.dayIndex)
@@ -1404,11 +1414,11 @@ function CollectModal({
         <div className="mt-5 grid grid-cols-2 gap-2">
           {alreadyCollected ? (
             <>
-              <button type="button" onClick={onCancel} className="rounded-xl bg-stone-100 py-3 text-sm font-black text-stone-600">
-                확인
-              </button>
-              <button type="button" onClick={onHome} className="rounded-xl bg-jewel-ink py-3 text-sm font-black text-white">
+              <button type="button" onClick={onHome} className="rounded-xl bg-stone-100 py-3 text-sm font-black text-stone-600">
                 홈으로 돌아가기
+              </button>
+              <button type="button" onClick={onCollect} className="rounded-xl bg-jewel-ink py-3 text-sm font-black text-white">
+                다시보기
               </button>
             </>
           ) : (
