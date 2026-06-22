@@ -1,4 +1,4 @@
-import { DEV_SAMPLE_PRAYER_IMAGES, PRAYER_DAYS, type PrayerImageSlot } from './constants'
+import { PRAYER_DAYS, type PrayerImageSlot } from './constants'
 import { supabase } from './supabase'
 import type {
   AppState,
@@ -277,7 +277,6 @@ export function hasFinalizedChallenge(participantId: string, state = loadState()
 export function getPrayerImage(state: AppState, dayIndex: number, slot: PrayerImageSlot) {
   const uploaded = state.prayerImages[String(dayIndex)]?.[String(slot)]
   if (uploaded) return uploaded
-  if (import.meta.env.DEV) return DEV_SAMPLE_PRAYER_IMAGES[slot]
   return null
 }
 
@@ -285,6 +284,20 @@ export async function savePrayerImage(dayIndex: number, slot: PrayerImageSlot, f
   if (supabase) {
     const extension = file.name.split('.').pop()?.toLowerCase() || 'png'
     const storagePath = `prayers/day-${String(dayIndex).padStart(2, '0')}/slot-${slot}.${extension}`
+    const current = await supabase
+      .from('prayer_images')
+      .select('storage_path')
+      .eq('day_index', dayIndex)
+      .eq('slot', slot)
+      .maybeSingle()
+    throwIfError(current.error)
+
+    const previousPath = current.data?.storage_path
+    if (previousPath && previousPath !== storagePath) {
+      const removal = await supabase.storage.from('prayer-images').remove([previousPath])
+      throwIfError(removal.error)
+    }
+
     const upload = await supabase.storage.from('prayer-images').upload(storagePath, file, {
       cacheControl: '604800',
       upsert: true,

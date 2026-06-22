@@ -12,5 +12,6 @@ vite.config.d.ts
 .DS_Store
 Thumbs.db
 _source-assets/
+public/images/prayers/
 
 .vercel
