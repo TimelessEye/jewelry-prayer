@@ -64,6 +64,7 @@ type FinishCeremony = {
   count: number
   participantType: Participant['type']
 }
+type PrayerTextSize = 'normal' | 'large'
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>
@@ -634,6 +635,13 @@ function PrayerScreen({
   const [collecting, setCollecting] = useState(false)
   const [collectingAlreadyCollected, setCollectingAlreadyCollected] = useState(false)
   const [page, setPage] = useState<PrayerImageSlot>(1)
+  const [textSize, setTextSize] = useState<PrayerTextSize>(() => {
+    try {
+      return localStorage.getItem('prayer-jewelry.prayerTextSize.v1') === 'large' ? 'large' : 'normal'
+    } catch {
+      return 'normal'
+    }
+  })
   const published = isPublished(day)
   const prayerText = getPrayerText(state, day.dayIndex)
   const image = getPrayerImage(state, day.dayIndex, page)
@@ -647,6 +655,14 @@ function PrayerScreen({
     setCollecting(false)
     setCollectingAlreadyCollected(false)
   }, [day.dayIndex])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('prayer-jewelry.prayerTextSize.v1', textSize)
+    } catch {
+      // Ignore storage errors; the current screen still keeps the selected size.
+    }
+  }, [textSize])
 
   useEffect(() => {
     if (!published) return
@@ -701,10 +717,28 @@ function PrayerScreen({
                 ))}
               </div>
             </div>
+            {page === 1 && prayerText && (
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white/75 px-4 py-3 shadow-sm">
+                <span className="text-sm font-black text-jewel-brown">글씨 크기</span>
+                <div className="grid grid-cols-2 rounded-xl bg-stone-100 p-1 text-sm font-black">
+                  {(['normal', 'large'] as PrayerTextSize[]).map((size) => (
+                    <button
+                      key={size}
+                      type="button"
+                      onClick={() => setTextSize(size)}
+                      className={`rounded-lg px-4 py-2 ${textSize === size ? 'bg-white text-jewel-ink shadow-sm' : 'text-stone-500'}`}
+                      aria-pressed={textSize === size}
+                    >
+                      {size === 'normal' ? '보통' : '크게'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-card">
               {page === 1 && prayerText ? (
-                <PrayerTextPage day={day} text={prayerText} />
+                <PrayerTextPage day={day} text={prayerText} size={textSize} />
               ) : image ? (
                 <img src={image} alt={`${day.monthDay} ${slotLabel(page)}`} loading="eager" decoding="async" className="h-auto w-full object-contain" />
               ) : (
@@ -782,9 +816,9 @@ function PrayerScreen({
   )
 }
 
-function PrayerTextPage({ day, text }: { day: PrayerDay; text: string }) {
+function PrayerTextPage({ day, text, size }: { day: PrayerDay; text: string; size: PrayerTextSize }) {
   return (
-    <article className="prayer-text-page">
+    <article className={`prayer-text-page ${size === 'large' ? 'prayer-text-page--large' : ''}`}>
       <div className="prayer-text-header">
         <span>{day.dayIndex}일차 기도문</span>
       </div>

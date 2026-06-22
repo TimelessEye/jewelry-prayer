@@ -102,15 +102,24 @@ button {
   margin-inline: auto;
   max-width: 34rem;
   color: #2f251f;
-  font-size: clamp(1.12rem, 4.7vw, 1.42rem);
+  font-size: clamp(1.08rem, 4.4vw, 1.34rem);
   font-weight: 750;
-  line-height: 1.85;
+  line-height: 1.9;
+  line-break: strict;
   word-break: keep-all;
   overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.prayer-text-page--large .prayer-text-body {
+  max-width: 32rem;
+  font-size: clamp(1.28rem, 5.6vw, 1.72rem);
+  line-height: 1.82;
 }
 
 .prayer-text-body p {
   margin: 0 0 1.15em;
+  white-space: pre-wrap;
 }
 
 .prayer-text-body p:last-child {
