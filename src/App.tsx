@@ -381,7 +381,7 @@ function StartScreen({
       <div className="text-center">
         <p className="text-xs font-black uppercase tracking-[0.2em] text-jewel-brown">{ORG_LABEL}</p>
         <h1 className="mt-2 text-4xl font-black leading-tight text-jewel-ink">20일 보석기도</h1>
-        <p className="mt-2 text-sm font-medium text-stone-600">20일 동안 다음세대를 위해 기도하고 보석을 모아요.</p>
+        <p className="mt-2 text-sm font-medium text-stone-600">20일 동안 다음세대를 위해 함께 기도해요</p>
         <p className="mt-3 rounded-full bg-white/70 px-4 py-2 text-sm font-black text-jewel-brown shadow-sm ring-1 ring-jewel-gold/25">
           운영기간: 6/22(월)~7/11(토)
         </p>
@@ -1167,12 +1167,6 @@ function AdminScreen({ state, onBack, onRefresh }: { state: AppState; onBack: ()
     <Panel wide>
       <BackButton onClick={onBack}>돌아가기</BackButton>
       <PageTitle eyebrow="관리자" title="20일 보석기도 현황" description="부모와 교사 통계를 분리해서 확인합니다." />
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="부모 등록" value={`${parentParticipants.length}명`} />
-        <StatCard label="교사 등록" value={`${teacherParticipants.length}/${TEACHERS.length}명`} />
-        <StatCard label="부모 완주" value={`${parentFinishers.length}명`} />
-        <StatCard label="교사 완주" value={`${teacherFinishers.length}명`} />
-      </div>
       <button
         type="button"
         onClick={() => downloadAdminBackup(state, backupSummary)}
@@ -1182,13 +1176,21 @@ function AdminScreen({ state, onBack, onRefresh }: { state: AppState; onBack: ()
         현재 참여 기록 백업 다운로드
       </button>
       <div className="grid gap-3 lg:grid-cols-2">
-        <AdminTable title="부모 참여자" participants={parentParticipants} state={state} />
         <AdminTable
-          title="교사 참여자"
+          title="부모 현황"
+          participants={parentParticipants}
+          state={state}
+          collapsed
+          summaryLabel={`${parentParticipants.length}명`}
+          detailLabel={`완주 ${parentFinishers.length}명`}
+        />
+        <AdminTable
+          title="교사 현황"
           participants={teacherParticipants}
           state={state}
           collapsed
-          summaryLabel={`${teacherParticipants.length}/${TEACHERS.length}`}
+          summaryLabel={`${teacherParticipants.length}/${TEACHERS.length}명`}
+          detailLabel={`완주 ${teacherFinishers.length}명`}
         />
       </div>
       <HouseholdBothParents participants={parentParticipants} state={state} />
@@ -1381,14 +1383,18 @@ function AdminTable({
   state,
   collapsed = false,
   summaryLabel,
+  detailLabel,
 }: {
   title: string
   participants: Participant[]
   state: AppState
   collapsed?: boolean
   summaryLabel?: string
+  detailLabel?: string
 }) {
   const content = (
+    <>
+      {detailLabel && <p className="mt-3 rounded-xl bg-jewel-cream px-3 py-2 text-sm font-black text-jewel-brown">{detailLabel}</p>}
       <div className="mt-3 grid gap-2">
         {participants.length === 0 ? (
           <p className="rounded-xl bg-stone-50 p-4 text-sm font-bold text-stone-500">아직 참여자가 없어요.</p>
@@ -1407,14 +1413,18 @@ function AdminTable({
           })
         )}
       </div>
+    </>
   )
 
   if (collapsed) {
     return (
       <details className="rounded-3xl border border-white/80 bg-white/75 p-4 shadow-card">
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
-          <h3 className="text-lg font-black">{title}</h3>
-          {summaryLabel && <span className="rounded-full bg-jewel-cream px-3 py-1 text-sm font-black text-jewel-brown">{summaryLabel}</span>}
+        <summary className="cursor-pointer list-none">
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="text-lg font-black">{title}</h3>
+            <span className="rounded-full bg-jewel-ink px-3 py-1 text-xs font-black text-white">열어보기</span>
+          </div>
+          {summaryLabel && <p className="mt-1 text-2xl font-black text-jewel-ink">{summaryLabel}</p>}
         </summary>
         {content}
       </details>
@@ -1539,14 +1549,7 @@ function CollectionCeremonyOverlay({ ceremony }: { ceremony: CollectionCeremony 
           <Sparkles className="collection-sparkle collection-sparkle-3" size={22} />
           <Sparkles className="collection-sparkle collection-sparkle-4" size={18} />
         </div>
-        <p className="mt-5 text-sm font-black text-jewel-brown">
-          {ceremony.replay ? '기도보석을 다시 꺼내 보는 중이에요' : '기도보석을 수집하는 중이에요'}
-        </p>
-        <h3 className="mt-1 text-2xl font-black leading-tight text-jewel-ink">
-          반짝이는 보석이
-          <br />
-          수집장으로 들어갑니다
-        </h3>
+        <h3 className="mt-5 text-2xl font-black leading-tight text-jewel-ink">보석장 이동중</h3>
       </div>
     </div>
   )
@@ -1780,15 +1783,6 @@ function LockedBox() {
       <Lock className="mx-auto text-stone-400" size={34} />
       <p className="mt-4 text-lg font-black">기도문은 당일 0시부터 열립니다.</p>
       <p className="mt-2 text-sm font-semibold text-stone-500">오늘과 과거에 공개된 기도문만 볼 수 있어요.</p>
-    </div>
-  )
-}
-
-function StatCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl border border-white/80 bg-white/75 p-4 shadow-card">
-      <p className="text-xs font-black text-stone-500">{label}</p>
-      <p className="mt-1 text-2xl font-black">{value}</p>
     </div>
   )
 }
