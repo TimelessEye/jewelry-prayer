@@ -701,22 +701,6 @@ function PrayerScreen({
           )}
           <div className="mx-auto max-w-2xl">
             {audio && <PrayerMusicControl src={audio} />}
-            <div className="mb-3 flex items-center justify-between rounded-2xl bg-white/75 px-4 py-3 shadow-sm">
-              <span className="text-sm font-black text-jewel-brown">
-                {page}/{PRAYER_IMAGE_SLOTS.length} · {slotLabel(page)}
-              </span>
-              <div className="flex gap-1">
-                {PRAYER_IMAGE_SLOTS.map((slot) => (
-                  <button
-                    key={slot}
-                    type="button"
-                    onClick={() => setPage(slot)}
-                    className={`h-2.5 w-8 rounded-full ${page === slot ? 'bg-jewel-brown' : 'bg-stone-200'}`}
-                    aria-label={`${slot}페이지 보기`}
-                  />
-                ))}
-              </div>
-            </div>
             {page === 1 && prayerText && (
               <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white/75 px-4 py-3 shadow-sm">
                 <span className="text-sm font-black text-jewel-brown">글씨 크기</span>
@@ -735,6 +719,22 @@ function PrayerScreen({
                 </div>
               </div>
             )}
+            <div className="mb-3 flex items-center justify-between rounded-2xl bg-white/75 px-4 py-3 shadow-sm">
+              <span className="text-sm font-black text-jewel-brown">
+                {page}/{PRAYER_IMAGE_SLOTS.length} · {slotLabel(page)}
+              </span>
+              <div className="flex gap-1">
+                {PRAYER_IMAGE_SLOTS.map((slot) => (
+                  <button
+                    key={slot}
+                    type="button"
+                    onClick={() => setPage(slot)}
+                    className={`h-2.5 w-8 rounded-full ${page === slot ? 'bg-jewel-brown' : 'bg-stone-200'}`}
+                    aria-label={`${slot}페이지 보기`}
+                  />
+                ))}
+              </div>
+            </div>
 
             <div className="overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-card">
               {page === 1 && prayerText ? (

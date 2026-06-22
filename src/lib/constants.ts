@@ -113,10 +113,11 @@ export const PRAYER_DAYS: PrayerDay[] = Array.from({ length: 20 }, (_, index) =>
   const yyyy = date.getFullYear()
   const mm = String(date.getMonth() + 1).padStart(2, '0')
   const dd = String(date.getDate()).padStart(2, '0')
+  const weekday = ['일', '월', '화', '수', '목', '금', '토'][date.getDay()]
   return {
     dayIndex: index + 1,
     date: `${yyyy}-${mm}-${dd}`,
-    monthDay: `${date.getMonth() + 1}월 ${date.getDate()}일`,
+    monthDay: `${date.getMonth() + 1}월 ${date.getDate()}일(${weekday})`,
     title: `${index + 1}일차 기도문`,
     publishAt: `${yyyy}-${mm}-${dd}T00:00:00+09:00`,
   }
