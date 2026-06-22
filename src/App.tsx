@@ -1504,7 +1504,7 @@ function CollectModal({
         <div className="mt-5 grid grid-cols-2 gap-2">
           {alreadyCollected ? (
             <>
-              <button type="button" onClick={onHome} className="rounded-xl bg-stone-100 py-3 text-sm font-black text-stone-600">
+              <button type="button" onClick={onCancel} className="rounded-xl bg-stone-100 py-3 text-sm font-black text-stone-600">
                 확인
               </button>
               <button type="button" onClick={onCollect} className="rounded-xl bg-jewel-ink py-3 text-sm font-black text-white">
