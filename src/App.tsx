@@ -234,6 +234,7 @@ export default function App() {
               participant={participant}
               day={selectedDay}
               state={state}
+              onStateChange={setState}
               onBack={() => setScreen('home')}
               onCollected={async () => {
                 const nextState = loadState()
@@ -613,12 +614,14 @@ function PrayerScreen({
   participant,
   day,
   state,
+  onStateChange,
   onBack,
   onCollected,
 }: {
   participant: Participant
   day: PrayerDay
   state: AppState
+  onStateChange: (state: AppState) => void
   onBack: () => void
   onCollected: () => void | Promise<void>
 }) {
@@ -628,6 +631,7 @@ function PrayerScreen({
   const image = getPrayerImage(state, day.dayIndex, page)
   const count = getCompletionCount(participant.id, state)
   const isFinalDay = day.dayIndex === PRAYER_DAYS.length
+  const alreadyCollected = hasCompleted(participant.id, day.dayIndex, state)
 
   useEffect(() => {
     setPage(1)
@@ -644,6 +648,16 @@ function PrayerScreen({
     })
   }, [day.dayIndex, published, state])
 
+  async function openCollectPrompt() {
+    const latestState = await hydrateStateFromSupabase()
+    onStateChange(latestState)
+    if (hasCompleted(participant.id, day.dayIndex, latestState)) {
+      setCollecting(false)
+      return
+    }
+    setCollecting(true)
+  }
+
   return (
     <Panel wide>
       <BackButton onClick={onBack}>홈으로</BackButton>
@@ -655,6 +669,11 @@ function PrayerScreen({
           {participant.type === 'teacher' && isFinalDay && count < PRAYER_DAYS.length && (
             <div className="mx-auto mb-4 max-w-2xl rounded-2xl border border-jewel-gold/40 bg-jewel-cream p-4 text-sm font-bold leading-relaxed text-jewel-brown">
               이 기도를 마친 뒤 남은 기도를 더 하거나, 이대로 20일 보석기도를 마감할 수 있어요.
+            </div>
+          )}
+          {alreadyCollected && (
+            <div className="mx-auto mb-4 max-w-2xl rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold leading-relaxed text-emerald-800">
+              이미 기도보석을 수집한 날짜입니다. 기도문은 다시 볼 수 있어요.
             </div>
           )}
           <div className="mx-auto max-w-2xl">
@@ -711,10 +730,11 @@ function PrayerScreen({
               ) : (
                 <button
                   type="button"
-                  onClick={() => setCollecting(true)}
-                  className="rounded-2xl bg-jewel-ink px-5 py-4 text-sm font-black text-white shadow-card"
+                  onClick={openCollectPrompt}
+                  disabled={alreadyCollected}
+                  className="rounded-2xl bg-jewel-ink px-5 py-4 text-sm font-black text-white shadow-card disabled:bg-stone-200 disabled:text-stone-500 disabled:shadow-none"
                 >
-                  기도 마치기
+                  {alreadyCollected ? '이미 수집 완료' : '기도 마치기'}
                 </button>
               )}
             </div>
@@ -726,6 +746,12 @@ function PrayerScreen({
           day={day}
           onCancel={() => setCollecting(false)}
           onCollect={async () => {
+            const latestState = await hydrateStateFromSupabase()
+            if (hasCompleted(participant.id, day.dayIndex, latestState)) {
+              onStateChange(latestState)
+              setCollecting(false)
+              return
+            }
             await completePrayerDay(participant.id, day.dayIndex)
             setCollecting(false)
             await onCollected()
