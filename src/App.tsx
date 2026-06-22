@@ -74,6 +74,8 @@ type BeforeInstallPromptEvent = Event & {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>
 }
 
+const HIDDEN_ADMIN_PARENT_NAMES = new Set(['김채론 맘'])
+
 const GEM_SLOT_POSITIONS = [
   { x: 23.2, y: 30.7 },
   { x: 41.15, y: 30.7 },
@@ -1102,7 +1104,9 @@ function AdminScreen({ state, onBack, onRefresh }: { state: AppState; onBack: ()
   const [unlocked, setUnlocked] = useState(false)
   const [code, setCode] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const parentParticipants = state.participants.filter((participant) => participant.type === 'parent')
+  const parentParticipants = state.participants.filter(
+    (participant) => participant.type === 'parent' && !HIDDEN_ADMIN_PARENT_NAMES.has(participant.displayName),
+  )
   const teacherParticipants = state.participants.filter((participant) => participant.type === 'teacher')
   const customParents = parentParticipants.filter((participant) => participant.source === 'custom')
   const parentFinishers = parentParticipants.filter((participant) => getCompletionCount(participant.id, state) === 20)
@@ -1163,7 +1167,13 @@ function AdminScreen({ state, onBack, onRefresh }: { state: AppState; onBack: ()
       </button>
       <div className="grid gap-3 lg:grid-cols-2">
         <AdminTable title="부모 참여자" participants={parentParticipants} state={state} />
-        <AdminTable title="교사 참여자" participants={teacherParticipants} state={state} />
+        <AdminTable
+          title="교사 참여자"
+          participants={teacherParticipants}
+          state={state}
+          collapsed
+          summaryLabel={`${teacherParticipants.length}/${TEACHERS.length}`}
+        />
       </div>
       <HouseholdBothParents participants={parentParticipants} state={state} />
       <AdminPrayerUpload state={state} today={today} onRefresh={onRefresh} />
@@ -1211,6 +1221,13 @@ function downloadAdminBackup(
 
 function AdminPrayerUpload({ state, today, onRefresh }: { state: AppState; today: PrayerDay; onRefresh: () => void }) {
   const [message, setMessage] = useState<string | null>(null)
+  const waitingDay = PRAYER_DAYS.find((day) => {
+    const hasFirstPage = Boolean(getPrayerText(state, day.dayIndex) || getPrayerImage(state, day.dayIndex, 1))
+    const hasSecondPage = Boolean(getPrayerImage(state, day.dayIndex, 2))
+    const hasThirdPage = Boolean(getPrayerImage(state, day.dayIndex, 3))
+    return !(hasFirstPage && hasSecondPage && hasThirdPage)
+  })
+  const waitingLabel = waitingDay ? `${waitingDay.dayIndex}일차 기도문 대기중` : '기도문 준비 완료'
 
   async function upload(dayIndex: number, slot: PrayerImageSlot, file: File | undefined) {
     if (!file) return
@@ -1247,13 +1264,14 @@ function AdminPrayerUpload({ state, today, onRefresh }: { state: AppState; today
   }
 
   return (
-    <div className="rounded-3xl border border-white/80 bg-white/75 p-4 shadow-card">
-      <div className="flex items-center justify-between gap-3">
+    <details className="rounded-3xl border border-white/80 bg-white/75 p-4 shadow-card">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
         <div>
-          <h3 className="text-lg font-black">기도문 이미지 관리</h3>
+          <h3 className="text-lg font-black">기도문, 배경 음악 관리</h3>
           <p className="text-xs font-bold text-stone-500">Supabase Storage에 저장됩니다. 오늘 기준: {today.monthDay}</p>
         </div>
-      </div>
+        <span className="shrink-0 rounded-full bg-jewel-cream px-3 py-1 text-xs font-black text-jewel-brown">{waitingLabel}</span>
+      </summary>
       {message && <p className="mt-3 rounded-xl bg-jewel-cream px-3 py-2 text-sm font-bold text-jewel-brown">{message}</p>}
       <div className="mt-4 grid gap-2">
         {PRAYER_DAYS.map((day) => {
@@ -1286,7 +1304,7 @@ function AdminPrayerUpload({ state, today, onRefresh }: { state: AppState; today
           )
         })}
       </div>
-    </div>
+    </details>
   )
 }
 
@@ -1341,10 +1359,20 @@ function AdminPrayerTextEditor({
   )
 }
 
-function AdminTable({ title, participants, state }: { title: string; participants: Participant[]; state: AppState }) {
-  return (
-    <div className="rounded-3xl border border-white/80 bg-white/75 p-4 shadow-card">
-      <h3 className="text-lg font-black">{title}</h3>
+function AdminTable({
+  title,
+  participants,
+  state,
+  collapsed = false,
+  summaryLabel,
+}: {
+  title: string
+  participants: Participant[]
+  state: AppState
+  collapsed?: boolean
+  summaryLabel?: string
+}) {
+  const content = (
       <div className="mt-3 grid gap-2">
         {participants.length === 0 ? (
           <p className="rounded-xl bg-stone-50 p-4 text-sm font-bold text-stone-500">아직 참여자가 없어요.</p>
@@ -1363,6 +1391,27 @@ function AdminTable({ title, participants, state }: { title: string; participant
           })
         )}
       </div>
+  )
+
+  if (collapsed) {
+    return (
+      <details className="rounded-3xl border border-white/80 bg-white/75 p-4 shadow-card">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
+          <h3 className="text-lg font-black">{title}</h3>
+          {summaryLabel && <span className="rounded-full bg-jewel-cream px-3 py-1 text-sm font-black text-jewel-brown">{summaryLabel}</span>}
+        </summary>
+        {content}
+      </details>
+    )
+  }
+
+  return (
+    <div className="rounded-3xl border border-white/80 bg-white/75 p-4 shadow-card">
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="text-lg font-black">{title}</h3>
+        {summaryLabel && <span className="rounded-full bg-jewel-cream px-3 py-1 text-sm font-black text-jewel-brown">{summaryLabel}</span>}
+      </div>
+      {content}
     </div>
   )
 }
