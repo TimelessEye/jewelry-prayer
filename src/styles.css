@@ -188,6 +188,25 @@ button {
   animation: gem-pop 1300ms ease-in-out infinite alternate;
 }
 
+.collect-modal-gem {
+  position: relative;
+  isolation: isolate;
+  animation: collect-modal-gem-rise 720ms cubic-bezier(0.16, 0.84, 0.28, 1.24) both;
+}
+
+.collect-modal-gem::after {
+  position: absolute;
+  inset: -10px;
+  z-index: -1;
+  content: "";
+  border-radius: 999px;
+  border: 2px solid rgba(255, 220, 118, 0.9);
+  box-shadow:
+    0 0 22px rgba(255, 210, 96, 0.72),
+    inset 0 0 22px rgba(255, 255, 255, 0.72);
+  animation: collect-modal-ring 950ms 120ms ease-out both;
+}
+
 .gem-slot-collected .gem-image {
   animation: gem-collect 1200ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
@@ -530,6 +549,37 @@ button {
   }
   to {
     transform: translateY(-6px) scale(1.04);
+  }
+}
+
+@keyframes collect-modal-gem-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(22px) scale(0.58) rotate(-10deg);
+    filter: blur(3px);
+  }
+  58% {
+    opacity: 1;
+    transform: translateY(-8px) scale(1.12) rotate(4deg);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotate(0);
+  }
+}
+
+@keyframes collect-modal-ring {
+  0% {
+    opacity: 0;
+    transform: scale(0.35);
+  }
+  42% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.42);
   }
 }
 

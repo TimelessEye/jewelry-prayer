@@ -1163,13 +1163,13 @@ function CollectModal({
   return (
     <div className="fixed inset-0 z-40 grid place-items-center bg-stone-950/55 px-4 backdrop-blur-sm">
       <div className="w-full max-w-sm rounded-3xl border border-white/70 bg-white p-6 text-center shadow-card">
-        <div className="mx-auto grid h-36 w-36 place-items-center rounded-full bg-jewel-cream shadow-glow">
+        <div className="collect-modal-gem mx-auto grid h-36 w-36 place-items-center rounded-full bg-jewel-cream shadow-glow">
           <GemImage dayIndex={day.dayIndex} large />
         </div>
-        <h3 className="mt-5 text-2xl font-black">오늘의 기도보석을 발견했어요.</h3>
-        <p className="mt-2 text-sm font-bold text-stone-600">
-          {alreadyCollected ? '이미 수집한 보석입니다.' : '기도보석을 수집하시겠습니까?'}
-        </p>
+        <h3 className="mt-5 text-2xl font-black">
+          {alreadyCollected ? '이미 수집한 보석입니다.' : '오늘의 기도보석을 발견했어요.'}
+        </h3>
+        {!alreadyCollected && <p className="mt-2 text-sm font-bold text-stone-600">기도보석을 수집하시겠습니까?</p>}
         <div className="mt-5 grid grid-cols-2 gap-2">
           <button type="button" onClick={onCancel} className="rounded-xl bg-stone-100 py-3 text-sm font-black text-stone-600">
             잠시 후에
