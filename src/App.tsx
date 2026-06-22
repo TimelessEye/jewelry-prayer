@@ -780,6 +780,7 @@ function PrayerScreen({
 function PrayerMusicControl({ src }: { src: string }) {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const [playing, setPlaying] = useState(false)
+  const [volume, setVolume] = useState(0.5)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -788,8 +789,13 @@ function PrayerMusicControl({ src }: { src: string }) {
     if (audioRef.current) {
       audioRef.current.pause()
       audioRef.current.currentTime = 0
+      audioRef.current.volume = volume
     }
   }, [src])
+
+  useEffect(() => {
+    if (audioRef.current) audioRef.current.volume = volume
+  }, [volume])
 
   async function toggle() {
     const audio = audioRef.current
@@ -824,6 +830,19 @@ function PrayerMusicControl({ src }: { src: string }) {
           {playing ? '기도음악 끄기' : '기도음악 켜기'}
         </button>
       </div>
+      <label className="mt-3 flex items-center gap-3 text-xs font-black text-jewel-brown">
+        <span className="shrink-0">음량</span>
+        <input
+          type="range"
+          min="0"
+          max="100"
+          value={Math.round(volume * 100)}
+          onChange={(event) => setVolume(Number(event.target.value) / 100)}
+          className="music-volume-slider"
+          aria-label="기도음악 음량"
+        />
+        <span className="w-9 text-right">{Math.round(volume * 100)}%</span>
+      </label>
       {error && <p className="mt-2 text-xs font-bold text-red-700">{error}</p>}
       <audio
         ref={audioRef}
