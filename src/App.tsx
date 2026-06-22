@@ -103,6 +103,15 @@ function isAllGemPreview() {
   return import.meta.env.DEV && typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('previewGems') === 'all'
 }
 
+function preloadImage(src: string | null | undefined) {
+  if (!src || typeof window === 'undefined') return
+  const image = new Image()
+  image.src = src
+  if (typeof image.decode === 'function') {
+    void image.decode().catch(() => undefined)
+  }
+}
+
 function getDevCompletionLimit() {
   if (!import.meta.env.DEV || typeof window === 'undefined') return null
   const value = new URLSearchParams(window.location.search).get('devCompleteUntil')
@@ -131,6 +140,11 @@ export default function App() {
 
   useEffect(() => {
     hydrateStateFromSupabase().then((nextState) => setState(nextState))
+  }, [])
+
+  useEffect(() => {
+    preloadImage(ASSETS.gemBoard)
+    preloadImage(ASSETS.baseGem)
   }, [])
 
   useEffect(() => {
@@ -200,6 +214,8 @@ export default function App() {
 
   function openCollectionWithCeremony(nextState: AppState, dayIndex: number, message: string, replay = false) {
     if (collectionTimerRef.current) window.clearTimeout(collectionTimerRef.current)
+    preloadImage(ASSETS.gemBoard)
+    preloadImage(COLLECTION_GEMS[dayIndex - 1] ?? ASSETS.baseGem)
     setState(nextState)
     setHighlightDayIndex(dayIndex)
     setCollectionCeremony({ dayIndex, replay })
@@ -963,7 +979,7 @@ function CollectionScreen({
       </BackButton>
       <PageTitle eyebrow={participant.displayName} title="나의 보석 수집장" description="아직 수집하지 못한 보석 자리를 누르면 지난 기도문으로 이동합니다." />
       <div className={`board-wrap ${isAllGemPreview() ? 'board-wrap-preview' : ''}`}>
-        <img src={ASSETS.gemBoard} alt="" className="board-bg" />
+        <img src={ASSETS.gemBoard} alt="" className="board-bg" loading="eager" decoding="async" />
         <div className="gem-grid">
           {PRAYER_DAYS.map((day) => {
             const done = hasCompleted(participant.id, day.dayIndex, state) || isAllGemPreview()
@@ -1517,7 +1533,7 @@ function CollectionCeremonyOverlay({ ceremony }: { ceremony: CollectionCeremony 
           {trailGems.map((item) => (
             <span key={item} className={`collection-trail-gem collection-trail-gem-${item}`} />
           ))}
-          <img src={gemSrc} alt="" className="collection-flying-gem" />
+          <img src={gemSrc} alt="" className="collection-flying-gem" loading="eager" decoding="async" />
           <Sparkles className="collection-sparkle collection-sparkle-1" size={26} />
           <Sparkles className="collection-sparkle collection-sparkle-2" size={20} />
           <Sparkles className="collection-sparkle collection-sparkle-3" size={22} />
@@ -1572,7 +1588,7 @@ function GemImage({ dayIndex, large }: { dayIndex: number; large?: boolean }) {
   const src = COLLECTION_GEMS[dayIndex - 1] ?? ASSETS.baseGem
   return (
     <span className={`gem-image gem-image-day-${dayIndex} ${large ? 'gem-image-large' : ''}`}>
-      <img src={failed ? ASSETS.baseGem : src} alt="" onError={() => setFailed(true)} />
+      <img src={failed ? ASSETS.baseGem : src} alt="" loading="eager" decoding="async" onError={() => setFailed(true)} />
     </span>
   )
 }
