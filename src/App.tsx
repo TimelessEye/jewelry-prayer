@@ -303,7 +303,6 @@ function TopBar({ participant, onHome, onAdmin }: { participant: Participant | n
         </span>
         <span>
           <span className="block text-sm font-black sm:text-base">{APP_TITLE}</span>
-          <span className="block text-[11px] font-semibold text-jewel-brown/80">{ORG_LABEL}</span>
         </span>
       </button>
       <div className="flex items-center gap-2">
@@ -336,7 +335,7 @@ function StartScreen({
         <h1 className="mt-2 text-4xl font-black leading-tight text-jewel-ink">20일 보석기도</h1>
         <p className="mt-2 text-sm font-medium text-stone-600">20일 동안 다음세대를 위해 기도하고 보석을 모아요.</p>
         <p className="mt-3 rounded-full bg-white/70 px-4 py-2 text-sm font-black text-jewel-brown shadow-sm ring-1 ring-jewel-gold/25">
-          운영기간: 6/22(월)~7/11(토)까지 20일 연속
+          운영기간: 6/22(월)~7/11(토)
         </p>
       </div>
 
@@ -1254,7 +1253,7 @@ function InAppNotice() {
 
   return (
     <div className="flex items-center gap-2 bg-amber-100 px-4 py-2 text-xs font-bold text-amber-900">
-      <span className="flex-1">앱 설치와 공유 기능을 사용하려면 외부 브라우저로 열어주세요.</span>
+      <span className="flex-1">앱의 기능을 오류 없이 최신으로 사용하려면 '브라우저로 열기'를 눌러주세요.</span>
       {kakao && (
         <button type="button" onClick={() => (window.location.href = `kakaotalk://web/openExternal?url=${encodeURIComponent(window.location.href)}`)} className="rounded-md bg-amber-500 px-2 py-1 text-white">
           브라우저로 열기
