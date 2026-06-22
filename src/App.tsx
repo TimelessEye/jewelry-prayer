@@ -626,6 +626,7 @@ function PrayerScreen({
   onCollected: () => void | Promise<void>
 }) {
   const [collecting, setCollecting] = useState(false)
+  const [collectingAlreadyCollected, setCollectingAlreadyCollected] = useState(false)
   const [page, setPage] = useState<PrayerImageSlot>(1)
   const published = isPublished(day)
   const image = getPrayerImage(state, day.dayIndex, page)
@@ -636,6 +637,7 @@ function PrayerScreen({
   useEffect(() => {
     setPage(1)
     setCollecting(false)
+    setCollectingAlreadyCollected(false)
   }, [day.dayIndex])
 
   useEffect(() => {
@@ -651,10 +653,7 @@ function PrayerScreen({
   async function openCollectPrompt() {
     const latestState = await hydrateStateFromSupabase()
     onStateChange(latestState)
-    if (hasCompleted(participant.id, day.dayIndex, latestState)) {
-      setCollecting(false)
-      return
-    }
+    setCollectingAlreadyCollected(hasCompleted(participant.id, day.dayIndex, latestState))
     setCollecting(true)
   }
 
@@ -731,10 +730,9 @@ function PrayerScreen({
                 <button
                   type="button"
                   onClick={openCollectPrompt}
-                  disabled={alreadyCollected}
-                  className="rounded-2xl bg-jewel-ink px-5 py-4 text-sm font-black text-white shadow-card disabled:bg-stone-200 disabled:text-stone-500 disabled:shadow-none"
+                  className="rounded-2xl bg-jewel-ink px-5 py-4 text-sm font-black text-white shadow-card"
                 >
-                  {alreadyCollected ? '이미 수집 완료' : '기도 마치기'}
+                  기도보석 수집하기
                 </button>
               )}
             </div>
@@ -744,16 +742,22 @@ function PrayerScreen({
       {collecting && (
         <CollectModal
           day={day}
-          onCancel={() => setCollecting(false)}
+          alreadyCollected={alreadyCollected || collectingAlreadyCollected}
+          onCancel={() => {
+            setCollecting(false)
+            setCollectingAlreadyCollected(false)
+          }}
           onCollect={async () => {
             const latestState = await hydrateStateFromSupabase()
             if (hasCompleted(participant.id, day.dayIndex, latestState)) {
               onStateChange(latestState)
               setCollecting(false)
+              setCollectingAlreadyCollected(false)
               return
             }
             await completePrayerDay(participant.id, day.dayIndex)
             setCollecting(false)
+            setCollectingAlreadyCollected(false)
             await onCollected()
           }}
         />
@@ -1145,7 +1149,17 @@ function MiniGemRow({ participant, state }: { participant: Participant; state: A
   )
 }
 
-function CollectModal({ day, onCancel, onCollect }: { day: PrayerDay; onCancel: () => void; onCollect: () => void | Promise<void> }) {
+function CollectModal({
+  day,
+  alreadyCollected,
+  onCancel,
+  onCollect,
+}: {
+  day: PrayerDay
+  alreadyCollected: boolean
+  onCancel: () => void
+  onCollect: () => void | Promise<void>
+}) {
   return (
     <div className="fixed inset-0 z-40 grid place-items-center bg-stone-950/55 px-4 backdrop-blur-sm">
       <div className="w-full max-w-sm rounded-3xl border border-white/70 bg-white p-6 text-center shadow-card">
@@ -1153,13 +1167,15 @@ function CollectModal({ day, onCancel, onCollect }: { day: PrayerDay; onCancel: 
           <GemImage dayIndex={day.dayIndex} large />
         </div>
         <h3 className="mt-5 text-2xl font-black">오늘의 기도보석을 발견했어요.</h3>
-        <p className="mt-2 text-sm font-bold text-stone-600">기도보석을 수집하시겠습니까?</p>
+        <p className="mt-2 text-sm font-bold text-stone-600">
+          {alreadyCollected ? '이미 수집한 보석입니다.' : '기도보석을 수집하시겠습니까?'}
+        </p>
         <div className="mt-5 grid grid-cols-2 gap-2">
           <button type="button" onClick={onCancel} className="rounded-xl bg-stone-100 py-3 text-sm font-black text-stone-600">
             잠시 후에
           </button>
           <button type="button" onClick={onCollect} className="rounded-xl bg-jewel-ink py-3 text-sm font-black text-white">
-            수집하기
+            {alreadyCollected ? '확인' : '수집하기'}
           </button>
         </div>
       </div>
