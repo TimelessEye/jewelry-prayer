@@ -743,6 +743,11 @@ function PrayerScreen({
         <CollectModal
           day={day}
           alreadyCollected={alreadyCollected || collectingAlreadyCollected}
+          onHome={() => {
+            setCollecting(false)
+            setCollectingAlreadyCollected(false)
+            onBack()
+          }}
           onCancel={() => {
             setCollecting(false)
             setCollectingAlreadyCollected(false)
@@ -1152,11 +1157,13 @@ function MiniGemRow({ participant, state }: { participant: Participant; state: A
 function CollectModal({
   day,
   alreadyCollected,
+  onHome,
   onCancel,
   onCollect,
 }: {
   day: PrayerDay
   alreadyCollected: boolean
+  onHome: () => void
   onCancel: () => void
   onCollect: () => void | Promise<void>
 }) {
@@ -1171,12 +1178,25 @@ function CollectModal({
         </h3>
         {!alreadyCollected && <p className="mt-2 text-sm font-bold text-stone-600">기도보석을 수집하시겠습니까?</p>}
         <div className="mt-5 grid grid-cols-2 gap-2">
-          <button type="button" onClick={onCancel} className="rounded-xl bg-stone-100 py-3 text-sm font-black text-stone-600">
-            잠시 후에
-          </button>
-          <button type="button" onClick={onCollect} className="rounded-xl bg-jewel-ink py-3 text-sm font-black text-white">
-            {alreadyCollected ? '확인' : '수집하기'}
-          </button>
+          {alreadyCollected ? (
+            <>
+              <button type="button" onClick={onCancel} className="rounded-xl bg-stone-100 py-3 text-sm font-black text-stone-600">
+                확인
+              </button>
+              <button type="button" onClick={onHome} className="rounded-xl bg-jewel-ink py-3 text-sm font-black text-white">
+                홈으로 돌아가기
+              </button>
+            </>
+          ) : (
+            <>
+              <button type="button" onClick={onCancel} className="rounded-xl bg-stone-100 py-3 text-sm font-black text-stone-600">
+                잠시 후에
+              </button>
+              <button type="button" onClick={onCollect} className="rounded-xl bg-jewel-ink py-3 text-sm font-black text-white">
+                수집하기
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>
