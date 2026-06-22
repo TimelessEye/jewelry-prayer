@@ -73,6 +73,13 @@ create table if not exists public.prayer_audio (
   uploaded_at timestamptz not null default now()
 );
 
+create table if not exists public.prayer_texts (
+  id uuid primary key default gen_random_uuid(),
+  day_index int not null unique references public.prayer_days(day_index) on delete cascade,
+  body text not null default '',
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists public.prayer_completions (
   id uuid primary key default gen_random_uuid(),
   participant_id uuid not null references public.participants(id) on delete cascade,
@@ -167,6 +174,7 @@ alter table public.participant_children enable row level security;
 alter table public.prayer_days enable row level security;
 alter table public.prayer_images enable row level security;
 alter table public.prayer_audio enable row level security;
+alter table public.prayer_texts enable row level security;
 alter table public.prayer_completions enable row level security;
 alter table public.teacher_completion_gems enable row level security;
 alter table public.teacher_gem_assignments enable row level security;
@@ -185,6 +193,8 @@ drop policy if exists public_read_prayer_images on public.prayer_images;
 create policy public_read_prayer_images on public.prayer_images for select using (true);
 drop policy if exists public_read_prayer_audio on public.prayer_audio;
 create policy public_read_prayer_audio on public.prayer_audio for select using (true);
+drop policy if exists public_read_prayer_texts on public.prayer_texts;
+create policy public_read_prayer_texts on public.prayer_texts for select using (true);
 drop policy if exists public_read_teacher_gems on public.teacher_completion_gems;
 create policy public_read_teacher_gems on public.teacher_completion_gems for select using (true);
 
@@ -204,3 +214,5 @@ drop policy if exists assignment_read on public.teacher_gem_assignments;
 create policy assignment_read on public.teacher_gem_assignments for select using (true);
 drop policy if exists public_upsert_prayer_audio on public.prayer_audio;
 create policy public_upsert_prayer_audio on public.prayer_audio for all using (true) with check (true);
+drop policy if exists public_upsert_prayer_texts on public.prayer_texts;
+create policy public_upsert_prayer_texts on public.prayer_texts for all using (true) with check (true);

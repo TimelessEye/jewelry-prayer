@@ -18,6 +18,7 @@ const EMPTY_STATE: AppState = {
   challengeClosures: [],
   prayerImages: {},
   prayerAudio: {},
+  prayerTexts: {},
 }
 
 type ParticipantRow = {
@@ -63,6 +64,11 @@ type PrayerAudioRow = {
   public_url: string
 }
 
+type PrayerTextRow = {
+  day_index: number
+  body: string
+}
+
 export function loadState(): AppState {
   try {
     const raw = localStorage.getItem(STATE_KEY)
@@ -88,6 +94,7 @@ export async function hydrateStateFromSupabase() {
       closuresResult,
       imagesResult,
       audioResult,
+      textsResult,
     ] = await Promise.all([
       supabase.from('participants').select('*').order('created_at', { ascending: true }),
       supabase.from('participant_children').select('*').order('created_at', { ascending: true }),
@@ -95,6 +102,7 @@ export async function hydrateStateFromSupabase() {
       supabase.from('challenge_closures').select('*').order('finalized_at', { ascending: true }),
       supabase.from('prayer_images').select('day_index, slot, public_url').order('day_index', { ascending: true }),
       supabase.from('prayer_audio').select('day_index, public_url').order('day_index', { ascending: true }),
+      supabase.from('prayer_texts').select('day_index, body').order('day_index', { ascending: true }),
     ])
 
     throwIfError(participantsResult.error)
@@ -110,6 +118,7 @@ export async function hydrateStateFromSupabase() {
       closures: (closuresResult.data ?? []) as ChallengeClosureRow[],
       images: (imagesResult.data ?? []) as PrayerImageRow[],
       audio: audioResult.error ? [] : (audioResult.data ?? []) as PrayerAudioRow[],
+      texts: textsResult.error ? [] : (textsResult.data ?? []) as PrayerTextRow[],
     })
     const merged = mergeStates(loadState(), remoteState)
     saveState(merged)
@@ -293,6 +302,10 @@ export function getPrayerAudio(state: AppState, dayIndex: number) {
   return state.prayerAudio[String(dayIndex)] ?? null
 }
 
+export function getPrayerText(state: AppState, dayIndex: number) {
+  return state.prayerTexts[String(dayIndex)] ?? ''
+}
+
 export async function savePrayerImage(dayIndex: number, slot: PrayerImageSlot, file: File) {
   if (supabase) {
     const extension = file.name.split('.').pop()?.toLowerCase() || 'png'
@@ -395,6 +408,27 @@ export async function savePrayerAudio(dayIndex: number, file: File) {
   state.prayerAudio[String(dayIndex)] = dataUrl
   saveState(state)
   return dataUrl
+}
+
+export async function savePrayerText(dayIndex: number, body: string) {
+  const normalizedBody = body.trim()
+  if (supabase) {
+    const { error } = await supabase.from('prayer_texts').upsert(
+      {
+        day_index: dayIndex,
+        body: normalizedBody,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'day_index' },
+    )
+    throwIfError(error)
+  }
+
+  const state = loadState()
+  if (normalizedBody) state.prayerTexts[String(dayIndex)] = normalizedBody
+  else delete state.prayerTexts[String(dayIndex)]
+  saveState(state)
+  return normalizedBody
 }
 
 export function fillCurrentParticipantForDev(participantId: string) {
@@ -500,6 +534,7 @@ function mapRemoteState({
   closures,
   images,
   audio,
+  texts,
 }: {
   participants: ParticipantRow[]
   children: ParticipantChildRow[]
@@ -507,6 +542,7 @@ function mapRemoteState({
   closures: ChallengeClosureRow[]
   images: PrayerImageRow[]
   audio: PrayerAudioRow[]
+  texts: PrayerTextRow[]
 }): AppState {
   const childrenByParticipant = new Map<string, ParticipantChild[]>()
   children.forEach((child) => {
@@ -531,6 +567,11 @@ function mapRemoteState({
   const prayerAudio: AppState['prayerAudio'] = {}
   audio.forEach((item) => {
     prayerAudio[String(item.day_index)] = item.public_url
+  })
+
+  const prayerTexts: AppState['prayerTexts'] = {}
+  texts.forEach((item) => {
+    prayerTexts[String(item.day_index)] = item.body
   })
 
   return normalizeState({
@@ -558,6 +599,7 @@ function mapRemoteState({
     })),
     prayerImages,
     prayerAudio,
+    prayerTexts,
   })
 }
 
@@ -573,6 +615,10 @@ function mergeStates(local: AppState, remote: AppState): AppState {
     prayerAudio: {
       ...local.prayerAudio,
       ...remote.prayerAudio,
+    },
+    prayerTexts: {
+      ...local.prayerTexts,
+      ...remote.prayerTexts,
     },
   })
 }
@@ -591,6 +637,7 @@ function normalizeState(state: AppState): AppState {
     challengeClosures: [...state.challengeClosures],
     prayerImages: state.prayerImages ?? {},
     prayerAudio: state.prayerAudio ?? {},
+    prayerTexts: state.prayerTexts ?? {},
   }
 }
 

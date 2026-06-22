@@ -53,4 +53,5 @@ export interface AppState {
   challengeClosures: ChallengeClosure[]
   prayerImages: Record<string, Record<string, string>>
   prayerAudio: Record<string, string>
+  prayerTexts: Record<string, string>
 }

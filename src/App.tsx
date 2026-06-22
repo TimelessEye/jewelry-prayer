@@ -45,6 +45,7 @@ import {
   getParticipantCompletions,
   getPrayerAudio,
   getPrayerImage,
+  getPrayerText,
   hydrateStateFromSupabase,
   hasFinalizedChallenge,
   hasCompleted,
@@ -52,6 +53,7 @@ import {
   markParticipantSeen,
   savePrayerImage,
   savePrayerAudio,
+  savePrayerText,
   setCurrentParticipantId,
 } from './lib/storage'
 import { createCompletionCard, shareCompletionCard } from './lib/share'
@@ -633,6 +635,7 @@ function PrayerScreen({
   const [collectingAlreadyCollected, setCollectingAlreadyCollected] = useState(false)
   const [page, setPage] = useState<PrayerImageSlot>(1)
   const published = isPublished(day)
+  const prayerText = getPrayerText(state, day.dayIndex)
   const image = getPrayerImage(state, day.dayIndex, page)
   const audio = getPrayerAudio(state, day.dayIndex)
   const count = getCompletionCount(participant.id, state)
@@ -700,7 +703,9 @@ function PrayerScreen({
             </div>
 
             <div className="overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-card">
-              {image ? (
+              {page === 1 && prayerText ? (
+                <PrayerTextPage day={day} text={prayerText} />
+              ) : image ? (
                 <img src={image} alt={`${day.monthDay} ${slotLabel(page)}`} loading="eager" decoding="async" className="h-auto w-full object-contain" />
               ) : (
                 <div className="grid min-h-[560px] place-items-center p-6 text-center">
@@ -774,6 +779,21 @@ function PrayerScreen({
         />
       )}
     </Panel>
+  )
+}
+
+function PrayerTextPage({ day, text }: { day: PrayerDay; text: string }) {
+  return (
+    <article className="prayer-text-page">
+      <div className="prayer-text-header">
+        <span>{day.dayIndex}일차 기도문</span>
+      </div>
+      <div className="prayer-text-body">
+        {text.split(/\n{2,}/).map((paragraph, index) => (
+          <p key={index}>{paragraph}</p>
+        ))}
+      </div>
+    </article>
   )
 }
 
@@ -1155,6 +1175,16 @@ function AdminPrayerUpload({ state, today, onRefresh }: { state: AppState; today
     }
   }
 
+  async function saveText(dayIndex: number, body: string) {
+    try {
+      await savePrayerText(dayIndex, body)
+      setMessage(`${dayIndex}일차 기도문 텍스트를 저장했어요.`)
+      onRefresh()
+    } catch {
+      setMessage('기도문 텍스트 저장에 실패했어요. 잠시 후 다시 시도해 주세요.')
+    }
+  }
+
   return (
     <div className="rounded-3xl border border-white/80 bg-white/75 p-4 shadow-card">
       <div className="flex items-center justify-between gap-3">
@@ -1169,11 +1199,16 @@ function AdminPrayerUpload({ state, today, onRefresh }: { state: AppState; today
           const slots = PRAYER_IMAGE_SLOTS
           const uploaded = slots.filter((slot) => getPrayerImage(state, day.dayIndex, slot)).length
           const hasAudio = Boolean(getPrayerAudio(state, day.dayIndex))
+          const hasText = Boolean(getPrayerText(state, day.dayIndex))
           return (
             <details key={day.dayIndex} className="rounded-2xl border border-stone-200 bg-white p-3">
               <summary className="cursor-pointer text-sm font-black">
-                {day.monthDay} · {day.dayIndex}일차 <span className="text-jewel-brown">기도문 {uploaded}/{PRAYER_IMAGE_SLOTS.length} · 음악 {hasAudio ? '있음' : '없음'}</span>
+                {day.monthDay} · {day.dayIndex}일차 <span className="text-jewel-brown">텍스트 {hasText ? '있음' : '없음'} · 이미지 {uploaded}/{PRAYER_IMAGE_SLOTS.length} · 음악 {hasAudio ? '있음' : '없음'}</span>
               </summary>
+              <AdminPrayerTextEditor
+                initialText={getPrayerText(state, day.dayIndex)}
+                onSave={(body) => saveText(day.dayIndex, body)}
+              />
               <div className="mt-3 grid gap-2 sm:grid-cols-3">
                 {slots.map((slot) => (
                   <label key={slot} className="rounded-xl bg-stone-50 p-3 text-xs font-bold text-stone-600">
@@ -1190,6 +1225,42 @@ function AdminPrayerUpload({ state, today, onRefresh }: { state: AppState; today
           )
         })}
       </div>
+    </div>
+  )
+}
+
+function AdminPrayerTextEditor({
+  initialText,
+  onSave,
+}: {
+  initialText: string
+  onSave: (body: string) => void | Promise<void>
+}) {
+  const [body, setBody] = useState(initialText)
+
+  useEffect(() => {
+    setBody(initialText)
+  }, [initialText])
+
+  return (
+    <div className="mt-3 rounded-xl bg-jewel-cream/70 p-3">
+      <label className="text-xs font-black text-jewel-brown">
+        1페이지 기도문 텍스트
+        <textarea
+          value={body}
+          onChange={(event) => setBody(event.target.value)}
+          rows={8}
+          className="mt-2 block w-full resize-y rounded-xl border border-jewel-gold/25 bg-white px-3 py-2 text-sm font-semibold leading-relaxed text-stone-800 outline-none focus:border-jewel-gold"
+          placeholder="여기에 1페이지 기도문을 입력하세요. 문단을 나누려면 한 줄을 비워 주세요."
+        />
+      </label>
+      <button
+        type="button"
+        onClick={() => onSave(body)}
+        className="mt-2 rounded-xl bg-jewel-ink px-4 py-2 text-xs font-black text-white"
+      >
+        기도문 텍스트 저장
+      </button>
     </div>
   )
 }
