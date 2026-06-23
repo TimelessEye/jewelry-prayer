@@ -50,6 +50,7 @@ import {
   hasFinalizedChallenge,
   hasCompleted,
   loadState,
+  loadInteractiveState,
   markParticipantSeen,
   savePrayerImage,
   savePrayerAudio,
@@ -137,6 +138,13 @@ export default function App() {
     () => state.participants.find((item) => item.id === currentId) ?? null,
     [currentId, state.participants],
   )
+
+  useEffect(() => {
+    if (!currentId || participant) return
+    setCurrentParticipantId(null)
+    setCurrentId(null)
+    setScreen('start')
+  }, [currentId, participant])
 
   useEffect(() => {
     hydrateStateFromSupabase().then((nextState) => setState(nextState))
@@ -297,7 +305,7 @@ export default function App() {
                 }
               }}
               onReplayCollection={async () => {
-                const nextState = await hydrateStateFromSupabase()
+                const nextState = await loadInteractiveState()
                 openCollectionWithCeremony(nextState, selectedDay.dayIndex, `${selectedDay.monthDay} 기도보석을 다시 보여드릴게요.`, true)
               }}
             />
@@ -717,7 +725,7 @@ function PrayerScreen({
   }, [day.dayIndex, published, state])
 
   async function openCollectPrompt() {
-    const latestState = await hydrateStateFromSupabase()
+    const latestState = await loadInteractiveState()
     onStateChange(latestState)
     setCollectingAlreadyCollected(hasCompleted(participant.id, day.dayIndex, latestState))
     setCollecting(true)
@@ -840,7 +848,7 @@ function PrayerScreen({
             setCollectingAlreadyCollected(false)
           }}
           onCollect={async () => {
-            const latestState = await hydrateStateFromSupabase()
+            const latestState = await loadInteractiveState()
             if (hasCompleted(participant.id, day.dayIndex, latestState)) {
               onStateChange(latestState)
               setCollecting(false)
@@ -1528,28 +1536,32 @@ function CollectModal({
 }
 
 function CollectionCeremonyOverlay({ ceremony }: { ceremony: CollectionCeremony }) {
-  const gemSrc = COLLECTION_GEMS[ceremony.dayIndex - 1] ?? ASSETS.baseGem
   const trailGems = [1, 2, 3, 4, 5, 6]
+  void ceremony
   return (
     <div className="collection-ceremony fixed inset-0 z-[60] grid place-items-center bg-[#2d241d]/50 px-4 backdrop-blur-sm">
       <div className="collection-ceremony-panel">
         <div className="collection-ceremony-stage" aria-hidden="true">
           <div className="collection-light-burst" />
-          <div className="collection-orbit collection-orbit-a" />
-          <div className="collection-orbit collection-orbit-b" />
+          <div className="collection-scan-field" />
           <div className="collection-portal">
             <Gem size={46} />
           </div>
           {trailGems.map((item) => (
             <span key={item} className={`collection-trail-gem collection-trail-gem-${item}`} />
           ))}
-          <img src={gemSrc} alt="" className="collection-flying-gem" loading="eager" decoding="async" />
+          <div className="collection-gem-wrap">
+            <div className="collection-universal-gem">
+              <img src="/images/collection/collection-universal-diamond.png" alt="" className="collection-universal-gem-img" />
+              <div className="collection-gem-laser" />
+            </div>
+          </div>
           <Sparkles className="collection-sparkle collection-sparkle-1" size={26} />
           <Sparkles className="collection-sparkle collection-sparkle-2" size={20} />
           <Sparkles className="collection-sparkle collection-sparkle-3" size={22} />
           <Sparkles className="collection-sparkle collection-sparkle-4" size={18} />
         </div>
-        <h3 className="mt-5 text-2xl font-black leading-tight text-jewel-ink">보석장 이동중</h3>
+        <h3 className="mt-5 text-lg font-black leading-tight text-jewel-brown">발견한 보석 수집중</h3>
       </div>
     </div>
   )

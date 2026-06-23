@@ -120,13 +120,16 @@ export async function hydrateStateFromSupabase() {
       audio: audioResult.error ? [] : (audioResult.data ?? []) as PrayerAudioRow[],
       texts: textsResult.error ? [] : (textsResult.data ?? []) as PrayerTextRow[],
     })
-    const merged = mergeStates(loadState(), remoteState)
-    saveState(merged)
-    return merged
+    saveState(remoteState)
+    return remoteState
   } catch (error) {
     console.warn('Supabase state sync failed.', error)
     return loadState()
   }
+}
+
+export async function loadInteractiveState() {
+  return import.meta.env.DEV ? loadState() : hydrateStateFromSupabase()
 }
 
 export function getCurrentParticipantId() {
@@ -233,7 +236,7 @@ export async function completePrayerDay(participantId: string, dayIndex: number)
   state.completions.push(completion)
   saveState(state)
 
-  if (supabase) {
+  if (shouldWriteRemoteProgress()) {
     const { error } = await supabase.from('prayer_completions').upsert(
       {
         participant_id: participantId,
@@ -274,7 +277,7 @@ export async function finalizeChallenge(participantId: string) {
   state.challengeClosures.push(closure)
   saveState(state)
 
-  if (supabase) {
+  if (shouldWriteRemoteProgress()) {
     const { error } = await supabase.from('challenge_closures').upsert(
       {
         participant_id: participantId,
@@ -486,7 +489,7 @@ export function fillAllParticipantsUntilForDev(dayLimit: number) {
 }
 
 async function syncParticipant(participant: Participant) {
-  if (!supabase) return
+  if (!shouldWriteRemoteProgress()) return
 
   const { error } = await supabase.from('participants').upsert(
     {
@@ -519,7 +522,7 @@ async function syncParticipant(participant: Participant) {
 }
 
 async function touchParticipant(id: string, seenAt: string) {
-  if (!supabase) return
+  if (!shouldWriteRemoteProgress()) return
   const { error } = await supabase
     .from('participants')
     .update({ last_seen_at: seenAt })
@@ -603,33 +606,6 @@ function mapRemoteState({
   })
 }
 
-function mergeStates(local: AppState, remote: AppState): AppState {
-  return normalizeState({
-    participants: mergeBy(local.participants, remote.participants, (participant) => participant.id),
-    completions: mergeBy(local.completions, remote.completions, (completion) => `${completion.participantId}:${completion.dayIndex}`),
-    challengeClosures: mergeBy(local.challengeClosures, remote.challengeClosures, (closure) => closure.participantId),
-    prayerImages: {
-      ...local.prayerImages,
-      ...remote.prayerImages,
-    },
-    prayerAudio: {
-      ...local.prayerAudio,
-      ...remote.prayerAudio,
-    },
-    prayerTexts: {
-      ...local.prayerTexts,
-      ...remote.prayerTexts,
-    },
-  })
-}
-
-function mergeBy<T>(local: T[], remote: T[], getKey: (item: T) => string) {
-  const map = new Map<string, T>()
-  local.forEach((item) => map.set(getKey(item), item))
-  remote.forEach((item) => map.set(getKey(item), item))
-  return [...map.values()]
-}
-
 function normalizeState(state: AppState): AppState {
   return {
     participants: [...state.participants].sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
@@ -643,6 +619,10 @@ function normalizeState(state: AppState): AppState {
 
 function cloneState(state: AppState): AppState {
   return JSON.parse(JSON.stringify(state)) as AppState
+}
+
+function shouldWriteRemoteProgress() {
+  return Boolean(supabase) && !import.meta.env.DEV
 }
 
 function throwIfError(error: unknown) {

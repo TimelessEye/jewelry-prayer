@@ -1,0 +1,6 @@
+.env
+.env.*
+!.env.example
+backups/
+collection-animation-candidates.html
+Prayer words sample/
