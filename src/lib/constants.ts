@@ -119,7 +119,7 @@ export const PRAYER_DAYS: PrayerDay[] = Array.from({ length: 20 }, (_, index) =>
     date: `${yyyy}-${mm}-${dd}`,
     monthDay: `${date.getMonth() + 1}월 ${date.getDate()}일(${weekday})`,
     title: `${index + 1}일차 기도문`,
-    publishAt: `${yyyy}-${mm}-${dd}T00:00:00+09:00`,
+    publishAt: `${yyyy}-${mm}-${dd}T06:00:00+09:00`,
   }
 })
 

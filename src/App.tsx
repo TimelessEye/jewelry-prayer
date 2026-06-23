@@ -202,7 +202,7 @@ export default function App() {
 
   function openPrayer(day: PrayerDay) {
     if (!isPublished(day)) {
-      showToast('기도문은 당일 0시부터 열립니다.')
+      showToast('기도문은 매일 아침 6시에 열려요.')
       return
     }
     setSelectedDay(day)
@@ -676,7 +676,7 @@ function HomeScreen({
           </p>
           {!published ? (
             <div className="mt-5 rounded-2xl bg-stone-100 p-4 text-sm font-bold text-stone-600">
-              기도문은 당일 0시부터 열립니다.
+              기도문은 매일 아침 6시에 열려요.
             </div>
           ) : completeToday ? (
             <div className="mt-5 rounded-2xl bg-emerald-50 p-4 text-sm font-bold text-emerald-700">
@@ -1103,7 +1103,7 @@ function CollectionScreen({
                 onClick={() => {
                   if (done) onToast(`${day.monthDay} 기도보석을 이미 수집했어요.`)
                   else if (published) onOpenPrayer(day)
-                  else onToast('기도문은 당일 0시부터 열립니다.')
+                  else onToast('기도문은 매일 아침 6시에 열려요.')
                 }}
                 className={`gem-slot ${done ? 'gem-slot-done' : published ? 'gem-slot-open' : 'gem-slot-locked'} ${highlightDayIndex === day.dayIndex ? 'gem-slot-collected' : ''}`}
               >
@@ -1980,7 +1980,7 @@ function LockedBox() {
   return (
     <div className="rounded-3xl border border-stone-200 bg-white p-8 text-center shadow-card">
       <Lock className="mx-auto text-stone-400" size={34} />
-      <p className="mt-4 text-lg font-black">기도문은 당일 0시부터 열립니다.</p>
+      <p className="mt-4 text-lg font-black">기도문은 매일 아침 6시에 열려요.</p>
       <p className="mt-2 text-sm font-semibold text-stone-500">오늘과 과거에 공개된 기도문만 볼 수 있어요.</p>
     </div>
   )
