@@ -540,7 +540,15 @@ function ParentRegister({ onBack, onCreate }: { onBack: () => void; onCreate: (p
 
       {pendingExisting && (
         <div className="fixed inset-0 z-40 grid place-items-center bg-stone-950/55 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-sm rounded-3xl border border-white/70 bg-white p-6 text-center shadow-card">
+          <div className="relative w-full max-w-sm rounded-3xl border border-white/70 bg-white p-6 text-center shadow-card">
+            <button
+              type="button"
+              onClick={() => setPendingExisting(null)}
+              className="absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-full bg-stone-100 text-lg font-black leading-none text-stone-500 transition hover:bg-stone-200"
+              aria-label="창 닫기"
+            >
+              ×
+            </button>
             <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-jewel-cream text-jewel-brown">
               <Gem size={28} />
             </div>
