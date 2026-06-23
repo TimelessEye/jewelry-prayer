@@ -58,7 +58,6 @@ import {
   savePrayerAudio,
   savePrayerText,
   setCurrentParticipantId,
-  resetParticipantProgress,
   resumeParticipant,
 } from './lib/storage'
 import { createCompletionCard, shareCompletionCard } from './lib/share'
@@ -476,17 +475,6 @@ function ParentRegister({ onBack, onCreate }: { onBack: () => void; onCreate: (p
     }
   }
 
-  async function resetExisting() {
-    if (!pendingExisting || saving) return
-    setSaving(true)
-    try {
-      const participant = await resetParticipantProgress(pendingExisting.participant.id)
-      if (participant) onCreate(participant)
-    } finally {
-      setSaving(false)
-    }
-  }
-
   return (
     <Panel>
       <BackButton onClick={onBack}>처음으로</BackButton>
@@ -562,8 +550,8 @@ function ParentRegister({ onBack, onCreate }: { onBack: () => void; onCreate: (p
               <button type="button" onClick={continueExisting} disabled={saving} className="rounded-xl bg-jewel-ink py-3 text-sm font-black text-white disabled:opacity-50">
                 네, 이어서 할게요
               </button>
-              <button type="button" onClick={resetExisting} disabled={saving} className="rounded-xl bg-stone-100 py-3 text-sm font-black text-stone-700 disabled:opacity-50">
-                아니요, 처음부터 다시 할게요
+              <button type="button" onClick={() => setPendingExisting(null)} disabled={saving} className="rounded-xl bg-stone-100 py-3 text-sm font-black text-stone-700 disabled:opacity-50">
+                선생님께 문의하기
               </button>
             </div>
           </div>
@@ -1362,6 +1350,9 @@ function downloadAdminBackup(
 
 function AdminPrayerUpload({ state, today, onRefresh }: { state: AppState; today: PrayerDay; onRefresh: () => void }) {
   const [message, setMessage] = useState<string | null>(null)
+  const [uploadUnlocked, setUploadUnlocked] = useState(false)
+  const [uploadCode, setUploadCode] = useState('')
+  const [uploadError, setUploadError] = useState<string | null>(null)
   const waitingDay = PRAYER_DAYS.find((day) => {
     const hasFirstPage = Boolean(getPrayerText(state, day.dayIndex) || getPrayerImage(state, day.dayIndex, 1))
     const hasSecondPage = Boolean(getPrayerImage(state, day.dayIndex, 2))
@@ -1404,6 +1395,15 @@ function AdminPrayerUpload({ state, today, onRefresh }: { state: AppState; today
     }
   }
 
+  function unlockUploads() {
+    if (uploadCode.trim() === '1111') {
+      setUploadUnlocked(true)
+      setUploadError(null)
+      return
+    }
+    setUploadError('업로드 비밀번호를 확인해 주세요.')
+  }
+
   return (
     <details className="rounded-3xl border border-white/80 bg-white/75 p-4 shadow-card">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
@@ -1414,6 +1414,28 @@ function AdminPrayerUpload({ state, today, onRefresh }: { state: AppState; today
         <span className="shrink-0 rounded-full bg-jewel-cream px-3 py-1 text-xs font-black text-jewel-brown">{waitingLabel}</span>
       </summary>
       {message && <p className="mt-3 rounded-xl bg-jewel-cream px-3 py-2 text-sm font-bold text-jewel-brown">{message}</p>}
+      {!uploadUnlocked ? (
+        <div className="mt-4 rounded-2xl border border-jewel-gold/30 bg-white p-4">
+          <p className="text-sm font-black text-jewel-brown">기도문과 배경 음악 업로드는 추가 비밀번호가 필요합니다.</p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
+            <input
+              value={uploadCode}
+              onChange={(event) => setUploadCode(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') unlockUploads()
+              }}
+              type="password"
+              inputMode="numeric"
+              className="field"
+              placeholder="업로드 비밀번호"
+            />
+            <button type="button" onClick={unlockUploads} className="rounded-xl bg-jewel-ink px-4 py-3 text-sm font-black text-white">
+              업로드 열기
+            </button>
+          </div>
+          {uploadError && <p className="mt-2 text-xs font-black text-red-700">{uploadError}</p>}
+        </div>
+      ) : (
       <div className="mt-4 grid gap-2">
         {PRAYER_DAYS.map((day) => {
           const slots = PRAYER_IMAGE_SLOTS
@@ -1445,6 +1467,7 @@ function AdminPrayerUpload({ state, today, onRefresh }: { state: AppState; today
           )
         })}
       </div>
+      )}
     </details>
   )
 }

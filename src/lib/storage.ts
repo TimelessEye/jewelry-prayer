@@ -193,26 +193,6 @@ export async function resumeParticipant(participantId: string) {
   return existing
 }
 
-export async function resetParticipantProgress(participantId: string) {
-  const state = await hydrateStateFromSupabase()
-  const existing = state.participants.find((participant) => participant.id === participantId)
-  if (!existing) return null
-
-  existing.lastSeenAt = new Date().toISOString()
-  state.completions = state.completions.filter((completion) => completion.participantId !== participantId)
-  state.challengeClosures = state.challengeClosures.filter((closure) => closure.participantId !== participantId)
-  saveState(state)
-  setCurrentParticipantId(existing.id)
-
-  if (shouldWriteRemoteProgress()) {
-    throwIfError((await supabase.from('prayer_completions').delete().eq('participant_id', participantId)).error)
-    throwIfError((await supabase.from('challenge_closures').delete().eq('participant_id', participantId)).error)
-  }
-
-  await touchParticipant(existing.id, existing.lastSeenAt)
-  return existing
-}
-
 export async function createParentParticipant(children: ParticipantChild[], guardianRole: GuardianRole) {
   const state = await hydrateStateFromSupabase()
   const names = children.map((child) => child.name)
