@@ -1303,6 +1303,7 @@ function AdminScreen({ state, onBack, onRefresh }: { state: AppState; onBack: ()
           participants={parentParticipants}
           state={state}
           collapsed
+          groupByClass
           summaryLabel={`${parentParticipants.length}명`}
           detailLabel={`완주 ${parentFinishers.length}명`}
         />
@@ -1504,6 +1505,7 @@ function AdminTable({
   participants,
   state,
   collapsed = false,
+  groupByClass = false,
   summaryLabel,
   detailLabel,
 }: {
@@ -1511,23 +1513,62 @@ function AdminTable({
   participants: Participant[]
   state: AppState
   collapsed?: boolean
+  groupByClass?: boolean
   summaryLabel?: string
   detailLabel?: string
 }) {
+  const [selectedClass, setSelectedClass] = useState('전체')
+  const classOptions = useMemo(() => {
+    if (!groupByClass) return []
+    const registered = CLASSES.filter((className) =>
+      participants.some((participant) => getParticipantClassNames(participant).includes(className)),
+    )
+    const hasCustom = participants.some((participant) => getParticipantClassNames(participant).includes('명단 외'))
+    return ['전체', ...registered, ...(hasCustom ? ['명단 외'] : [])]
+  }, [groupByClass, participants])
+  const visibleParticipants =
+    groupByClass && selectedClass !== '전체'
+      ? participants.filter((participant) => getParticipantClassNames(participant).includes(selectedClass))
+      : participants
+
   const content = (
     <>
       {detailLabel && <p className="mt-3 rounded-xl bg-jewel-cream px-3 py-2 text-sm font-black text-jewel-brown">{detailLabel}</p>}
+      {groupByClass && classOptions.length > 1 && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {classOptions.map((className) => (
+            <button
+              key={className}
+              type="button"
+              onClick={() => setSelectedClass(className)}
+              className={`rounded-full px-3 py-1.5 text-xs font-black transition ${
+                selectedClass === className ? 'bg-jewel-ink text-white' : 'bg-white text-stone-600 ring-1 ring-stone-200'
+              }`}
+            >
+              {className}
+              <span className="ml-1 opacity-75">
+                {className === '전체'
+                  ? participants.length
+                  : participants.filter((participant) => getParticipantClassNames(participant).includes(className)).length}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
       <div className="mt-3 grid gap-2">
-        {participants.length === 0 ? (
+        {visibleParticipants.length === 0 ? (
           <p className="rounded-xl bg-stone-50 p-4 text-sm font-bold text-stone-500">아직 참여자가 없어요.</p>
         ) : (
-          participants.map((participant) => {
+          visibleParticipants.map((participant) => {
             const count = getCompletionCount(participant.id, state)
+            const classLabel = getParticipantClassNames(participant).join(', ')
             return (
               <div key={participant.id} className="grid grid-cols-[1fr_auto] items-center gap-2 rounded-xl bg-white px-3 py-2 ring-1 ring-stone-200">
                 <span>
                   <span className="block text-sm font-black">{participant.displayName}</span>
-                  <span className="block text-xs font-bold text-stone-500">{participant.source === 'custom' ? '명단 외' : participant.type === 'teacher' ? '교사' : '공식 명단'}</span>
+                  <span className="block text-xs font-bold text-stone-500">
+                    {participant.type === 'teacher' ? '교사' : classLabel}
+                  </span>
                 </span>
                 <span className="rounded-full bg-jewel-cream px-3 py-1 text-sm font-black text-jewel-brown">{count}/20</span>
               </div>
@@ -1562,6 +1603,15 @@ function AdminTable({
       {content}
     </div>
   )
+}
+
+function getParticipantClassNames(participant: Participant) {
+  const classNames = participant.children
+    ?.map((child) => child.className)
+    .filter((className): className is string => Boolean(className))
+
+  if (classNames?.length) return [...new Set(classNames)]
+  return ['명단 외']
 }
 
 function HouseholdBothParents({ participants, state }: { participants: Participant[]; state: AppState }) {
