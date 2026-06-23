@@ -141,6 +141,60 @@ export function setCurrentParticipantId(id: string | null) {
   else localStorage.removeItem(CURRENT_KEY)
 }
 
+export async function findParentParticipantProgress(children: ParticipantChild[], guardianRole: GuardianRole) {
+  const state = await hydrateStateFromSupabase()
+  const householdKey = children.map((child) => child.name).sort().join('|')
+  const candidates = state.participants.filter(
+    (participant) =>
+      participant.type === 'parent' &&
+      participant.guardianRole === guardianRole &&
+      participant.householdKey === householdKey,
+  )
+
+  if (!candidates.length) return null
+
+  const scored = candidates
+    .map((participant) => ({
+      participant,
+      completionCount: state.completions.filter((completion) => completion.participantId === participant.id).length,
+    }))
+    .sort((a, b) => b.completionCount - a.completionCount || b.participant.lastSeenAt.localeCompare(a.participant.lastSeenAt))
+
+  return scored[0]
+}
+
+export async function resumeParticipant(participantId: string) {
+  const state = await hydrateStateFromSupabase()
+  const existing = state.participants.find((participant) => participant.id === participantId)
+  if (!existing) return null
+
+  existing.lastSeenAt = new Date().toISOString()
+  saveState(state)
+  setCurrentParticipantId(existing.id)
+  await touchParticipant(existing.id, existing.lastSeenAt)
+  return existing
+}
+
+export async function resetParticipantProgress(participantId: string) {
+  const state = await hydrateStateFromSupabase()
+  const existing = state.participants.find((participant) => participant.id === participantId)
+  if (!existing) return null
+
+  existing.lastSeenAt = new Date().toISOString()
+  state.completions = state.completions.filter((completion) => completion.participantId !== participantId)
+  state.challengeClosures = state.challengeClosures.filter((closure) => closure.participantId !== participantId)
+  saveState(state)
+  setCurrentParticipantId(existing.id)
+
+  if (shouldWriteRemoteProgress()) {
+    throwIfError((await supabase.from('prayer_completions').delete().eq('participant_id', participantId)).error)
+    throwIfError((await supabase.from('challenge_closures').delete().eq('participant_id', participantId)).error)
+  }
+
+  await touchParticipant(existing.id, existing.lastSeenAt)
+  return existing
+}
+
 export async function createParentParticipant(children: ParticipantChild[], guardianRole: GuardianRole) {
   const state = await hydrateStateFromSupabase()
   const names = children.map((child) => child.name)

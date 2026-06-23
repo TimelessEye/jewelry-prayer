@@ -39,6 +39,7 @@ import {
   createParentParticipant,
   createTeacherParticipant,
   fillAllParticipantsUntilForDev,
+  findParentParticipantProgress,
   finalizeChallenge,
   getCompletionCount,
   getCurrentParticipantId,
@@ -56,6 +57,8 @@ import {
   savePrayerAudio,
   savePrayerText,
   setCurrentParticipantId,
+  resetParticipantProgress,
+  resumeParticipant,
 } from './lib/storage'
 import { createCompletionCard, shareCompletionCard } from './lib/share'
 import type { AppState, GuardianRole, Participant, ParticipantChild, PrayerDay } from './lib/types'
@@ -70,6 +73,10 @@ type CollectionCeremony = {
   replay?: boolean
 }
 type PrayerTextSize = 'normal' | 'large'
+type ParentProgressMatch = {
+  participant: Participant
+  completionCount: number
+}
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>
@@ -422,6 +429,7 @@ function ParentRegister({ onBack, onCreate }: { onBack: () => void; onCreate: (p
   const [customName, setCustomName] = useState('')
   const [role, setRole] = useState<GuardianRole>('mom')
   const [saving, setSaving] = useState(false)
+  const [pendingExisting, setPendingExisting] = useState<ParentProgressMatch | null>(null)
 
   const selectedChildren = STUDENTS.filter((student) => selectedIds.includes(student.id)).map<ParticipantChild>((student) => ({
     studentId: student.id,
@@ -437,11 +445,42 @@ function ParentRegister({ onBack, onCreate }: { onBack: () => void; onCreate: (p
   const children = [...selectedChildren, ...customChildren]
   const preview = children.length ? `${children.map((child) => child.name).join('·')} ${role === 'mom' ? '맘' : '대디'}` : '표시 이름 미리보기'
 
+  useEffect(() => {
+    setPendingExisting(null)
+  }, [customName, role, selectedIds])
+
   async function submit() {
     if (!children.length || saving) return
     setSaving(true)
     try {
+      const existing = await findParentParticipantProgress(children, role)
+      if (existing && existing.completionCount > 0) {
+        setPendingExisting(existing)
+        return
+      }
       onCreate(await createParentParticipant(children, role))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function continueExisting() {
+    if (!pendingExisting || saving) return
+    setSaving(true)
+    try {
+      const participant = await resumeParticipant(pendingExisting.participant.id)
+      if (participant) onCreate(participant)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function resetExisting() {
+    if (!pendingExisting || saving) return
+    setSaving(true)
+    try {
+      const participant = await resetParticipantProgress(pendingExisting.participant.id)
+      if (participant) onCreate(participant)
     } finally {
       setSaving(false)
     }
@@ -498,6 +537,29 @@ function ParentRegister({ onBack, onCreate }: { onBack: () => void; onCreate: (p
       <PrimaryButton disabled={!children.length || saving} onClick={submit}>
         {saving ? '저장 중...' : '이 이름으로 시작하기'}
       </PrimaryButton>
+
+      {pendingExisting && (
+        <div className="fixed inset-0 z-40 grid place-items-center bg-stone-950/55 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-3xl border border-white/70 bg-white p-6 text-center shadow-card">
+            <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-jewel-cream text-jewel-brown">
+              <Gem size={28} />
+            </div>
+            <h3 className="mt-4 text-2xl font-black leading-tight">이미 진행된 기도가 있어요</h3>
+            <p className="mt-3 text-sm font-bold leading-relaxed text-stone-600">
+              {pendingExisting.participant.displayName} 이름으로 {pendingExisting.completionCount}/20개의 기도보석이 모여 있습니다.
+            </p>
+            <p className="mt-2 text-sm font-bold leading-relaxed text-stone-600">이전 기록을 이어서 하시겠어요?</p>
+            <div className="mt-5 grid gap-2">
+              <button type="button" onClick={continueExisting} disabled={saving} className="rounded-xl bg-jewel-ink py-3 text-sm font-black text-white disabled:opacity-50">
+                네, 이어서 할게요
+              </button>
+              <button type="button" onClick={resetExisting} disabled={saving} className="rounded-xl bg-stone-100 py-3 text-sm font-black text-stone-700 disabled:opacity-50">
+                아니요, 처음부터 다시 할게요
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Panel>
   )
 }
