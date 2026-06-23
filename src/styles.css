@@ -280,6 +280,13 @@ button {
   animation: collect-modal-gem-rise 720ms cubic-bezier(0.16, 0.84, 0.28, 1.24) both;
 }
 
+.collect-modal-gem .gem-image-large {
+  opacity: 0;
+  animation:
+    collect-modal-gem-fade 820ms 80ms ease-out both,
+    gem-pop 1300ms 900ms ease-in-out infinite alternate;
+}
+
 .collect-modal-gem::after {
   position: absolute;
   inset: -10px;
@@ -873,6 +880,21 @@ button {
   100% {
     opacity: 1;
     transform: translateY(0) scale(1) rotate(0);
+  }
+}
+
+@keyframes collect-modal-gem-fade {
+  0% {
+    opacity: 0;
+    filter: blur(5px) brightness(1.35);
+  }
+  42% {
+    opacity: 0.72;
+    filter: blur(2px) brightness(1.18);
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0) brightness(1);
   }
 }
 
