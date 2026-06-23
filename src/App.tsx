@@ -40,6 +40,7 @@ import {
   createTeacherParticipant,
   fillAllParticipantsUntilForDev,
   findParentParticipantProgress,
+  findTeacherParticipantProgress,
   finalizeChallenge,
   getCompletionCount,
   getCurrentParticipantId,
@@ -574,12 +575,29 @@ function ParentRegister({ onBack, onCreate }: { onBack: () => void; onCreate: (p
 
 function TeacherRegister({ onBack, onCreate }: { onBack: () => void; onCreate: (participant: Participant) => void }) {
   const [savingName, setSavingName] = useState<string | null>(null)
+  const [pendingExisting, setPendingExisting] = useState<ParentProgressMatch | null>(null)
 
   async function selectTeacher(name: string) {
     if (savingName) return
     setSavingName(name)
     try {
+      const existing = await findTeacherParticipantProgress(name)
+      if (existing && existing.completionCount > 0) {
+        setPendingExisting(existing)
+        return
+      }
       onCreate(await createTeacherParticipant(name))
+    } finally {
+      setSavingName(null)
+    }
+  }
+
+  async function continueExisting() {
+    if (!pendingExisting || savingName) return
+    setSavingName(pendingExisting.participant.teacherName ?? pendingExisting.participant.displayName)
+    try {
+      const participant = await resumeParticipant(pendingExisting.participant.id)
+      if (participant) onCreate(participant)
     } finally {
       setSavingName(null)
     }
@@ -596,6 +614,32 @@ function TeacherRegister({ onBack, onCreate }: { onBack: () => void; onCreate: (
           </button>
         ))}
       </div>
+
+      {pendingExisting && (
+        <div className="fixed inset-0 z-40 grid place-items-center bg-stone-950/55 px-4 backdrop-blur-sm">
+          <div className="relative w-full max-w-sm rounded-3xl border border-white/70 bg-white p-6 text-center shadow-card">
+            <button
+              type="button"
+              onClick={() => setPendingExisting(null)}
+              className="absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-full bg-stone-100 text-lg font-black leading-none text-stone-500 transition hover:bg-stone-200"
+              aria-label="창 닫기"
+            >
+              ×
+            </button>
+            <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-jewel-cream text-jewel-brown">
+              <Gem size={28} />
+            </div>
+            <h3 className="mt-4 text-2xl font-black leading-tight">이미 진행된 기록이 있어요</h3>
+            <p className="mt-3 text-sm font-bold leading-relaxed text-stone-600">
+              {pendingExisting.participant.displayName} 이름으로 {pendingExisting.completionCount}/20개의 기도보석이 모여 있습니다.
+            </p>
+            <p className="mt-2 text-sm font-bold leading-relaxed text-stone-600">본인 기록이 맞으면 이어서 들어가세요.</p>
+            <button type="button" onClick={continueExisting} disabled={Boolean(savingName)} className="mt-5 w-full rounded-xl bg-jewel-ink py-3 text-sm font-black text-white disabled:opacity-50">
+              네, 이어서 들어갈게요
+            </button>
+          </div>
+        </div>
+      )}
     </Panel>
   )
 }

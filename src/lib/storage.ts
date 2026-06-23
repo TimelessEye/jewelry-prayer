@@ -163,6 +163,24 @@ export async function findParentParticipantProgress(children: ParticipantChild[]
   return scored[0]
 }
 
+export async function findTeacherParticipantProgress(teacherName: string) {
+  const state = await hydrateStateFromSupabase()
+  const candidates = state.participants.filter(
+    (participant) => participant.type === 'teacher' && participant.teacherName === teacherName,
+  )
+
+  if (!candidates.length) return null
+
+  const scored = candidates
+    .map((participant) => ({
+      participant,
+      completionCount: state.completions.filter((completion) => completion.participantId === participant.id).length,
+    }))
+    .sort((a, b) => b.completionCount - a.completionCount || b.participant.lastSeenAt.localeCompare(a.participant.lastSeenAt))
+
+  return scored[0]
+}
+
 export async function resumeParticipant(participantId: string) {
   const state = await hydrateStateFromSupabase()
   const existing = state.participants.find((participant) => participant.id === participantId)
