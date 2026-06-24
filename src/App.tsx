@@ -201,7 +201,7 @@ export default function App() {
   }
 
   function openPrayer(day: PrayerDay) {
-    if (!isPublished(day)) {
+    if (!isPrayerOpen(day, state)) {
       showToast('기도문은 매일 아침 7시에 열려요.')
       return
     }
@@ -652,14 +652,14 @@ function HomeScreen({
   onFinalize: () => void | Promise<void>
 }) {
   const today = getCurrentPrayerDay()
-  const published = isPublished(today)
+  const published = isPrayerOpen(today, state)
   const completeToday = hasCompleted(participant.id, today.dayIndex, state)
   const count = getCompletionCount(participant.id, state)
   const progress = Math.round((count / PRAYER_DAYS.length) * 100)
   const remainingPublishedDays = PRAYER_DAYS.filter(
-    (day) => isPublished(day) && !hasCompleted(participant.id, day.dayIndex, state),
+    (day) => isPrayerOpen(day, state) && !hasCompleted(participant.id, day.dayIndex, state),
   )
-  const finalDayPublished = isPublished(PRAYER_DAYS[PRAYER_DAYS.length - 1])
+  const finalDayPublished = isPrayerOpen(PRAYER_DAYS[PRAYER_DAYS.length - 1], state)
   const teacherFinalized = participant.type === 'teacher' && hasFinalizedChallenge(participant.id, state)
   const teacherCanFinishAsIs = participant.type === 'teacher' && finalDayPublished && count < PRAYER_DAYS.length && !teacherFinalized
   const onlyFinalPrayerRemains =
@@ -794,7 +794,7 @@ function PrayerScreen({
       return 'normal'
     }
   })
-  const published = isPublished(day)
+  const published = isPrayerOpen(day, state)
   const prayerText = getPrayerText(state, day.dayIndex)
   const image = getPrayerImage(state, day.dayIndex, page)
   const audio = getPrayerAudio(state, day.dayIndex)
@@ -1093,7 +1093,7 @@ function CollectionScreen({
         <div className="gem-grid">
           {PRAYER_DAYS.map((day) => {
             const done = hasCompleted(participant.id, day.dayIndex, state) || isAllGemPreview()
-            const published = isPublished(day)
+            const published = isPrayerOpen(day, state)
             const position = GEM_SLOT_POSITIONS[day.dayIndex - 1]
             return (
               <button
@@ -1129,7 +1129,7 @@ function AllPrayersScreen({
   onBack: () => void
   onOpenPrayer: (day: PrayerDay) => void
 }) {
-  const days = PRAYER_DAYS.filter((day) => isPublished(day))
+  const days = PRAYER_DAYS.filter((day) => isPrayerOpen(day, state))
   return (
     <Panel>
       <BackButton onClick={onBack}>홈으로</BackButton>
@@ -1635,6 +1635,30 @@ function getParticipantClassNames(participant: Participant) {
 
   if (classNames?.length) return [...new Set(classNames)]
   return ['명단 외']
+}
+
+function isPrayerOpen(day: PrayerDay, state: AppState) {
+  if (isPublished(day)) return true
+  if (day.date > getVisibleDateKey()) return false
+  return hasPrayerFirstPage(state, day)
+}
+
+function hasPrayerFirstPage(state: AppState, day: PrayerDay) {
+  return Boolean(getPrayerText(state, day.dayIndex).trim() || getPrayerImage(state, day.dayIndex, 1))
+}
+
+function getVisibleDateKey() {
+  if (import.meta.env.DEV && typeof window !== 'undefined') {
+    const previewDate = new URLSearchParams(window.location.search).get('previewDate')
+    if (previewDate && /^\d{4}-\d{2}-\d{2}$/.test(previewDate)) return previewDate
+  }
+
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date())
 }
 
 function HouseholdBothParents({ participants, state }: { participants: Participant[]; state: AppState }) {
