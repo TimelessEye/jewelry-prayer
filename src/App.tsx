@@ -202,7 +202,7 @@ export default function App() {
 
   function openPrayer(day: PrayerDay) {
     if (!isPrayerOpen(day, state)) {
-      showToast('기도문은 매일 아침 7시에 열려요.')
+      showToast(getPrayerLockedMessage(day))
       return
     }
     setSelectedDay(day)
@@ -676,7 +676,7 @@ function HomeScreen({
           </p>
           {!published ? (
             <div className="mt-5 rounded-2xl bg-stone-100 p-4 text-sm font-bold text-stone-600">
-              기도문은 매일 아침 7시에 열려요.
+              {getPrayerLockedMessage(today)}
             </div>
           ) : completeToday ? (
             <div className="mt-5 rounded-2xl bg-emerald-50 p-4 text-sm font-bold text-emerald-700">
@@ -838,7 +838,7 @@ function PrayerScreen({
       <BackButton onClick={onBack}>홈으로</BackButton>
       <PageTitle eyebrow={`${day.monthDay} · ${day.dayIndex}일차`} title={day.title} description="기도문을 따라 읽고, 말씀으로 축복하며, 기도제목을 함께 품어주세요." />
       {!published ? (
-        <LockedBox />
+        <LockedBox day={day} />
       ) : (
         <>
           {participant.type === 'teacher' && isFinalDay && count < PRAYER_DAYS.length && (
@@ -1103,7 +1103,7 @@ function CollectionScreen({
                 onClick={() => {
                   if (done) onToast(`${day.monthDay} 기도보석을 이미 수집했어요.`)
                   else if (published) onOpenPrayer(day)
-                  else onToast('기도문은 매일 아침 7시에 열려요.')
+                  else onToast(getPrayerLockedMessage(day))
                 }}
                 className={`gem-slot ${done ? 'gem-slot-done' : published ? 'gem-slot-open' : 'gem-slot-locked'} ${highlightDayIndex === day.dayIndex ? 'gem-slot-collected' : ''}`}
               >
@@ -1135,7 +1135,7 @@ function AllPrayersScreen({
       <BackButton onClick={onBack}>홈으로</BackButton>
       <PageTitle eyebrow={participant.displayName} title="전체 기도문 보기" description="오늘과 과거에 공개된 기도문만 볼 수 있어요." />
       {days.length === 0 ? (
-        <LockedBox />
+        <LockedBox day={getCurrentPrayerDay()} />
       ) : (
         <div className="grid gap-2">
           {days.map((day) => {
@@ -1643,6 +1643,16 @@ function isPrayerOpen(day: PrayerDay, state: AppState) {
   return hasPrayerFirstPage(state, day)
 }
 
+function getPrayerLockedMessage(day: PrayerDay) {
+  return isSundayPrayer(day)
+    ? '주일 기도문은 주일 예배가 끝난 뒤 오후에 열립니다.'
+    : '기도문은 매일 아침 7시에 열려요.'
+}
+
+function isSundayPrayer(day: PrayerDay) {
+  return new Date(`${day.date}T12:00:00+09:00`).getDay() === 0
+}
+
 function hasPrayerFirstPage(state: AppState, day: PrayerDay) {
   return Boolean(getPrayerText(state, day.dayIndex).trim() || getPrayerImage(state, day.dayIndex, 1))
 }
@@ -2000,11 +2010,11 @@ function BackButton({ children, onClick }: { children: ReactNode; onClick: () =>
   )
 }
 
-function LockedBox() {
+function LockedBox({ day }: { day?: PrayerDay }) {
   return (
     <div className="rounded-3xl border border-stone-200 bg-white p-8 text-center shadow-card">
       <Lock className="mx-auto text-stone-400" size={34} />
-      <p className="mt-4 text-lg font-black">기도문은 매일 아침 7시에 열려요.</p>
+      <p className="mt-4 text-lg font-black">{day ? getPrayerLockedMessage(day) : '기도문은 매일 아침 7시에 열려요.'}</p>
       <p className="mt-2 text-sm font-semibold text-stone-500">오늘과 과거에 공개된 기도문만 볼 수 있어요.</p>
     </div>
   )
