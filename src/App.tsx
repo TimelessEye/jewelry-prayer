@@ -1230,6 +1230,7 @@ function AdminScreen({ state, onBack, onRefresh }: { state: AppState; onBack: ()
   const [unlocked, setUnlocked] = useState(false)
   const [code, setCode] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [backupStatus, setBackupStatus] = useState<'idle' | 'running' | 'error'>('idle')
   const parentParticipants = state.participants.filter(
     (participant) => participant.type === 'parent' && !HIDDEN_ADMIN_PARENT_NAMES.has(participant.displayName),
   )
@@ -1279,12 +1280,26 @@ function AdminScreen({ state, onBack, onRefresh }: { state: AppState; onBack: ()
       <PageTitle eyebrow="관리자" title="20일 보석기도 현황" description="부모와 교사 통계를 분리해서 확인합니다." />
       <button
         type="button"
-        onClick={() => downloadAdminBackup(state, backupSummary)}
+        onClick={async () => {
+          try {
+            setBackupStatus('running')
+            await downloadAdminBackup(state, backupSummary)
+            setBackupStatus('idle')
+          } catch {
+            setBackupStatus('error')
+          }
+        }}
+        disabled={backupStatus === 'running'}
         className="flex items-center justify-center gap-2 rounded-2xl bg-jewel-ink px-5 py-4 text-sm font-black text-white shadow-card transition hover:bg-jewel-brown"
       >
         <Download size={18} />
-        현재 참여 기록 백업 다운로드
+        {backupStatus === 'running' ? '백업 파일 만드는 중...' : '참여 기록·기도자료 전체 백업 다운로드'}
       </button>
+      {backupStatus === 'error' && (
+        <p className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+          백업 파일을 만드는 중 문제가 생겼어요. 인터넷 연결을 확인하고 다시 눌러 주세요.
+        </p>
+      )}
       <div className="grid gap-3 lg:grid-cols-2">
         <AdminTable
           title="부모 현황"
@@ -1316,7 +1331,7 @@ function AdminScreen({ state, onBack, onRefresh }: { state: AppState; onBack: ()
   )
 }
 
-function downloadAdminBackup(
+async function downloadAdminBackup(
   state: AppState,
   summary: {
     parentCount: number
@@ -1328,22 +1343,236 @@ function downloadAdminBackup(
 ) {
   const createdAt = new Date()
   const dateKey = createdAt.toISOString().slice(0, 10)
+  const prayerMaterials = buildPrayerMaterialsBackup(state)
   const backup = {
     app: APP_TITLE,
     organization: ORG_LABEL,
     exportedAt: createdAt.toISOString(),
     summary,
+    prayerMaterials,
     participants: state.participants,
     completions: state.completions,
     challengeClosures: state.challengeClosures,
+    prayerTexts: state.prayerTexts,
     prayerImages: state.prayerImages,
     prayerAudio: state.prayerAudio,
   }
-  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json;charset=utf-8' })
+  const files = await buildBackupZipFiles(backup, prayerMaterials)
+  const blob = createZipBlob(files)
+  downloadBlob(blob, `jewelry-prayer-full-backup-${dateKey}.zip`)
+}
+
+type BackupFile = {
+  path: string
+  data: Uint8Array
+}
+
+type PrayerMaterialBackup = {
+  dayIndex: number
+  date: string
+  monthDay: string
+  title: string
+  prayerText: string
+  images: Record<string, string | null>
+  audio: string | null
+}
+
+function buildPrayerMaterialsBackup(state: AppState): PrayerMaterialBackup[] {
+  return PRAYER_DAYS.map((day) => {
+    const images = Object.fromEntries(
+      PRAYER_IMAGE_SLOTS.map((slot) => [String(slot), getPrayerImage(state, day.dayIndex, slot)]),
+    ) as Record<string, string | null>
+
+    return {
+      dayIndex: day.dayIndex,
+      date: day.date,
+      monthDay: day.monthDay,
+      title: day.title,
+      prayerText: getPrayerText(state, day.dayIndex),
+      images,
+      audio: getPrayerAudio(state, day.dayIndex),
+    }
+  })
+}
+
+async function buildBackupZipFiles(backup: unknown, prayerMaterials: PrayerMaterialBackup[]) {
+  const files: BackupFile[] = [
+    textBackupFile('backup.json', JSON.stringify(backup, null, 2)),
+    textBackupFile('기도자료-목록.csv', `\ufeff${buildPrayerMaterialsCsv(prayerMaterials)}`),
+  ]
+  const failedResources: string[] = []
+
+  for (const material of prayerMaterials) {
+    const dayFolder = `기도자료/day-${String(material.dayIndex).padStart(2, '0')}`
+    if (material.prayerText.trim()) {
+      files.push(textBackupFile(`${dayFolder}/01-기도문.txt`, material.prayerText))
+    }
+
+    for (const slot of PRAYER_IMAGE_SLOTS) {
+      const url = material.images[String(slot)]
+      if (!url) continue
+      try {
+        const fetched = await fetchBackupResource(url, `page-${slot}`)
+        files.push({
+          path: `${dayFolder}/${String(slot).padStart(2, '0')}-${getPrayerSlotBackupLabel(slot)}.${fetched.extension}`,
+          data: fetched.data,
+        })
+      } catch {
+        failedResources.push(`${material.dayIndex}일차 ${slot}페이지: ${url}`)
+      }
+    }
+
+    if (material.audio) {
+      try {
+        const fetched = await fetchBackupResource(material.audio, 'music')
+        files.push({
+          path: `${dayFolder}/기도음악.${fetched.extension}`,
+          data: fetched.data,
+        })
+      } catch {
+        failedResources.push(`${material.dayIndex}일차 기도음악: ${material.audio}`)
+      }
+    }
+  }
+
+  if (failedResources.length > 0) {
+    files.push(textBackupFile('다운로드-실패-목록.txt', failedResources.join('\n')))
+  }
+
+  return files
+}
+
+function buildPrayerMaterialsCsv(prayerMaterials: PrayerMaterialBackup[]) {
+  const rows = [
+    ['일차', '날짜', '제목', '기도문 텍스트 있음', '1페이지 이미지', '2페이지 이미지', '3페이지 이미지', '기도음악'],
+    ...prayerMaterials.map((material) => [
+      String(material.dayIndex),
+      material.monthDay,
+      material.title,
+      material.prayerText.trim() ? '있음' : '없음',
+      material.images['1'] ?? '',
+      material.images['2'] ?? '',
+      material.images['3'] ?? '',
+      material.audio ?? '',
+    ]),
+  ]
+
+  return rows.map((row) => row.map(escapeCsvCell).join(',')).join('\n')
+}
+
+function escapeCsvCell(value: string) {
+  return `"${value.replace(/"/g, '""')}"`
+}
+
+function getPrayerSlotBackupLabel(slot: PrayerImageSlot) {
+  if (slot === 1) return '기도문-이미지'
+  if (slot === 2) return '선포기도'
+  return '기도제목'
+}
+
+function textBackupFile(path: string, value: string): BackupFile {
+  return {
+    path,
+    data: new TextEncoder().encode(value),
+  }
+}
+
+async function fetchBackupResource(url: string, fallbackName: string) {
+  if (url.startsWith('data:')) {
+    const [header, base64Data = ''] = url.split(',')
+    const mimeType = header.match(/^data:([^;]+)/)?.[1] ?? ''
+    const binary = atob(base64Data)
+    const data = new Uint8Array(binary.length)
+    for (let index = 0; index < binary.length; index += 1) data[index] = binary.charCodeAt(index)
+    return { data, extension: getBackupFileExtension(url, mimeType, fallbackName) }
+  }
+
+  const response = await fetch(url, { cache: 'no-store' })
+  if (!response.ok) throw new Error(`Failed to fetch backup resource: ${url}`)
+  const data = new Uint8Array(await response.arrayBuffer())
+  return { data, extension: getBackupFileExtension(url, response.headers.get('content-type') ?? '', fallbackName) }
+}
+
+function getBackupFileExtension(url: string, mimeType: string, fallbackName: string) {
+  const cleanUrl = url.split('?')[0] ?? ''
+  const extension = cleanUrl.match(/\.([a-zA-Z0-9]+)$/)?.[1]?.toLowerCase()
+  if (extension) return extension
+  if (mimeType.includes('png')) return 'png'
+  if (mimeType.includes('jpeg') || mimeType.includes('jpg')) return 'jpg'
+  if (mimeType.includes('webp')) return 'webp'
+  if (mimeType.includes('mpeg')) return 'mp3'
+  if (mimeType.includes('mp4')) return 'm4a'
+  if (mimeType.includes('wav')) return 'wav'
+  return fallbackName === 'music' ? 'mp3' : 'bin'
+}
+
+function createZipBlob(files: BackupFile[]) {
+  const localParts: Uint8Array[] = []
+  const centralParts: Uint8Array[] = []
+  let offset = 0
+
+  for (const file of files) {
+    const fileName = new TextEncoder().encode(file.path)
+    const crc = crc32(file.data)
+    const localHeader = new Uint8Array(30 + fileName.length)
+    const localView = new DataView(localHeader.buffer)
+    localView.setUint32(0, 0x04034b50, true)
+    localView.setUint16(4, 20, true)
+    localView.setUint16(6, 0x0800, true)
+    localView.setUint16(8, 0, true)
+    localView.setUint32(14, crc, true)
+    localView.setUint32(18, file.data.length, true)
+    localView.setUint32(22, file.data.length, true)
+    localView.setUint16(26, fileName.length, true)
+    localHeader.set(fileName, 30)
+    localParts.push(localHeader, file.data)
+
+    const centralHeader = new Uint8Array(46 + fileName.length)
+    const centralView = new DataView(centralHeader.buffer)
+    centralView.setUint32(0, 0x02014b50, true)
+    centralView.setUint16(4, 20, true)
+    centralView.setUint16(6, 20, true)
+    centralView.setUint16(8, 0x0800, true)
+    centralView.setUint16(10, 0, true)
+    centralView.setUint32(16, crc, true)
+    centralView.setUint32(20, file.data.length, true)
+    centralView.setUint32(24, file.data.length, true)
+    centralView.setUint16(28, fileName.length, true)
+    centralView.setUint32(42, offset, true)
+    centralHeader.set(fileName, 46)
+    centralParts.push(centralHeader)
+
+    offset += localHeader.length + file.data.length
+  }
+
+  const centralSize = centralParts.reduce((sum, part) => sum + part.length, 0)
+  const endHeader = new Uint8Array(22)
+  const endView = new DataView(endHeader.buffer)
+  endView.setUint32(0, 0x06054b50, true)
+  endView.setUint16(8, files.length, true)
+  endView.setUint16(10, files.length, true)
+  endView.setUint32(12, centralSize, true)
+  endView.setUint32(16, offset, true)
+
+  return new Blob([...localParts, ...centralParts, endHeader], { type: 'application/zip' })
+}
+
+function crc32(data: Uint8Array) {
+  let crc = 0xffffffff
+  for (const byte of data) {
+    crc ^= byte
+    for (let bit = 0; bit < 8; bit += 1) {
+      crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1))
+    }
+  }
+  return (crc ^ 0xffffffff) >>> 0
+}
+
+function downloadBlob(blob: Blob, fileName: string) {
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
-  link.download = `jewelry-prayer-backup-${dateKey}.json`
+  link.download = fileName
   link.click()
   URL.revokeObjectURL(url)
 }
