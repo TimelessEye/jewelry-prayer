@@ -1710,6 +1710,8 @@ function AdminPrayerTextEditor({
 }) {
   const [body, setBody] = useState(initialText)
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'failed'>('idle')
+  const characterCount = body.length
+  const characterCountWithoutSpaces = body.replace(/\s/g, '').length
 
   useEffect(() => {
     setBody(initialText)
@@ -1738,6 +1740,10 @@ function AdminPrayerTextEditor({
           placeholder="여기에 1페이지 기도문을 입력하세요. 문단을 나누려면 한 줄을 비워 주세요."
         />
       </label>
+      <div className="mt-2 flex flex-wrap gap-2 text-xs font-black text-jewel-brown/80">
+        <span className="rounded-full bg-white px-3 py-1 shadow-sm">공백 포함 {characterCount.toLocaleString()}자</span>
+        <span className="rounded-full bg-white px-3 py-1 shadow-sm">공백 제외 {characterCountWithoutSpaces.toLocaleString()}자</span>
+      </div>
       <button
         type="button"
         onClick={handleSave}
