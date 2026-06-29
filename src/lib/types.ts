@@ -47,6 +47,13 @@ export interface ChallengeClosure {
   finalizedAt: string
 }
 
+export interface PrayerDeclaration {
+  title: string
+  scripture: string
+  reference: string
+  tip: string
+}
+
 export interface AppState {
   participants: Participant[]
   completions: Completion[]

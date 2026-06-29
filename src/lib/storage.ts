@@ -7,6 +7,7 @@ import type {
   GuardianRole,
   Participant,
   ParticipantChild,
+  PrayerDeclaration,
 } from './types'
 
 const STATE_KEY = 'prayer-jewelry.state.v1'
@@ -67,6 +68,12 @@ type PrayerAudioRow = {
 type PrayerTextRow = {
   day_index: number
   body: string
+}
+
+type PrayerTextBundle = {
+  v: 2
+  prayerText: string
+  declaration?: PrayerDeclaration
 }
 
 export function loadState(): AppState {
@@ -358,7 +365,14 @@ export function getPrayerAudio(state: AppState, dayIndex: number) {
 }
 
 export function getPrayerText(state: AppState, dayIndex: number) {
-  return state.prayerTexts[String(dayIndex)] ?? ''
+  return parsePrayerTextBundle(state.prayerTexts[String(dayIndex)] ?? '').prayerText
+}
+
+export function getPrayerDeclaration(state: AppState, dayIndex: number) {
+  const declaration = parsePrayerTextBundle(state.prayerTexts[String(dayIndex)] ?? '').declaration
+  if (!declaration) return null
+  if (!declaration.scripture.trim() && !declaration.tip.trim()) return null
+  return declaration
 }
 
 export async function savePrayerImage(dayIndex: number, slot: PrayerImageSlot, file: File) {
@@ -467,11 +481,16 @@ export async function savePrayerAudio(dayIndex: number, file: File) {
 
 export async function savePrayerText(dayIndex: number, body: string) {
   const normalizedBody = body.trim()
+  const existingBundle = parsePrayerTextBundle(loadState().prayerTexts[String(dayIndex)] ?? '')
+  const bundledBody = stringifyPrayerTextBundle({
+    ...existingBundle,
+    prayerText: normalizedBody,
+  })
   if (supabase) {
     const { error } = await supabase.from('prayer_texts').upsert(
       {
         day_index: dayIndex,
-        body: normalizedBody,
+        body: bundledBody,
         updated_at: new Date().toISOString(),
       },
       { onConflict: 'day_index' },
@@ -480,10 +499,43 @@ export async function savePrayerText(dayIndex: number, body: string) {
   }
 
   const state = loadState()
-  if (normalizedBody) state.prayerTexts[String(dayIndex)] = normalizedBody
+  if (normalizedBody || existingBundle.declaration) state.prayerTexts[String(dayIndex)] = bundledBody
   else delete state.prayerTexts[String(dayIndex)]
   saveState(state)
   return normalizedBody
+}
+
+export async function savePrayerDeclaration(dayIndex: number, declaration: PrayerDeclaration) {
+  const normalizedDeclaration: PrayerDeclaration = {
+    title: declaration.title.trim() || '선포 기도문',
+    scripture: declaration.scripture.trim(),
+    reference: declaration.reference.trim(),
+    tip: declaration.tip.trim(),
+  }
+  const state = loadState()
+  const existingBundle = parsePrayerTextBundle(state.prayerTexts[String(dayIndex)] ?? '')
+  const nextBundle = {
+    ...existingBundle,
+    declaration: normalizedDeclaration.scripture || normalizedDeclaration.tip ? normalizedDeclaration : undefined,
+  }
+  const bundledBody = stringifyPrayerTextBundle(nextBundle)
+
+  if (supabase) {
+    const { error } = await supabase.from('prayer_texts').upsert(
+      {
+        day_index: dayIndex,
+        body: bundledBody,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'day_index' },
+    )
+    throwIfError(error)
+  }
+
+  if (nextBundle.prayerText || nextBundle.declaration) state.prayerTexts[String(dayIndex)] = bundledBody
+  else delete state.prayerTexts[String(dayIndex)]
+  saveState(state)
+  return normalizedDeclaration
 }
 
 export function fillCurrentParticipantForDev(participantId: string) {
@@ -671,6 +723,46 @@ function normalizeState(state: AppState): AppState {
 
 function cloneState(state: AppState): AppState {
   return JSON.parse(JSON.stringify(state)) as AppState
+}
+
+function parsePrayerTextBundle(raw: string): PrayerTextBundle {
+  if (!raw.trim()) return { v: 2, prayerText: '' }
+  try {
+    const parsed = JSON.parse(raw) as Partial<PrayerTextBundle>
+    if (parsed?.v === 2) {
+      return {
+        v: 2,
+        prayerText: typeof parsed.prayerText === 'string' ? parsed.prayerText : '',
+        declaration: normalizePrayerDeclaration(parsed.declaration),
+      }
+    }
+  } catch {
+    // Old rows are plain prayer text. Keep reading them as page 1 text.
+  }
+  return { v: 2, prayerText: raw }
+}
+
+function stringifyPrayerTextBundle(bundle: Partial<PrayerTextBundle>) {
+  const normalized: PrayerTextBundle = {
+    v: 2,
+    prayerText: bundle.prayerText?.trim() ?? '',
+    declaration: normalizePrayerDeclaration(bundle.declaration),
+  }
+  if (!normalized.prayerText && !normalized.declaration) return ''
+  if (!normalized.declaration) return normalized.prayerText
+  return JSON.stringify(normalized)
+}
+
+function normalizePrayerDeclaration(declaration: unknown): PrayerDeclaration | undefined {
+  if (!declaration || typeof declaration !== 'object') return undefined
+  const value = declaration as Partial<PrayerDeclaration>
+  const normalized = {
+    title: typeof value.title === 'string' && value.title.trim() ? value.title.trim() : '선포 기도문',
+    scripture: typeof value.scripture === 'string' ? value.scripture.trim() : '',
+    reference: typeof value.reference === 'string' ? value.reference.trim() : '',
+    tip: typeof value.tip === 'string' ? value.tip.trim() : '',
+  }
+  return normalized.scripture || normalized.tip ? normalized : undefined
 }
 
 function shouldWriteRemoteProgress() {
