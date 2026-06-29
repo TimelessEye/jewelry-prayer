@@ -1054,8 +1054,8 @@ function PrayerMusicControl({ src }: { src: string }) {
       <audio
         ref={audioRef}
         src={src}
+        loop
         preload="none"
-        onEnded={() => setPlaying(false)}
         onPause={() => setPlaying(false)}
         onPlay={() => setPlaying(true)}
       />
