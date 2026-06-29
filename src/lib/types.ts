@@ -54,6 +54,11 @@ export interface PrayerDeclaration {
   tip: string
 }
 
+export interface PrayerRequest {
+  title: string
+  body: string
+}
+
 export interface AppState {
   participants: Participant[]
   completions: Completion[]

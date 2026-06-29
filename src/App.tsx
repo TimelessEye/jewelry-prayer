@@ -48,6 +48,7 @@ import {
   getPrayerAudio,
   getPrayerDeclaration,
   getPrayerImage,
+  getPrayerRequest,
   getPrayerText,
   hydrateStateFromSupabase,
   hasFinalizedChallenge,
@@ -59,11 +60,12 @@ import {
   savePrayerAudio,
   savePrayerDeclaration,
   savePrayerText,
+  savePrayerRequest,
   setCurrentParticipantId,
   resumeParticipant,
 } from './lib/storage'
 import { createCompletionCard, shareCompletionCard } from './lib/share'
-import type { AppState, GuardianRole, Participant, ParticipantChild, PrayerDay, PrayerDeclaration } from './lib/types'
+import type { AppState, GuardianRole, Participant, ParticipantChild, PrayerDay, PrayerDeclaration, PrayerRequest } from './lib/types'
 
 type Screen = 'start' | 'parent-register' | 'teacher-register' | 'home' | 'prayer' | 'collection' | 'all-prayers' | 'complete' | 'admin'
 type FinishCeremony = {
@@ -799,6 +801,7 @@ function PrayerScreen({
   const published = isPrayerOpen(day, state)
   const prayerText = getPrayerText(state, day.dayIndex)
   const prayerDeclaration = getPrayerDeclaration(state, day.dayIndex)
+  const prayerRequest = getPrayerRequest(state, day.dayIndex)
   const image = getPrayerImage(state, day.dayIndex, page)
   const audio = getPrayerAudio(state, day.dayIndex)
   const count = getCompletionCount(participant.id, state)
@@ -896,6 +899,8 @@ function PrayerScreen({
                 <PrayerTextPage day={day} text={prayerText} size={textSize} />
               ) : page === 2 && prayerDeclaration ? (
                 <PrayerDeclarationPage declaration={prayerDeclaration} />
+              ) : page === 3 && prayerRequest ? (
+                <PrayerRequestPage prayerRequest={prayerRequest} />
               ) : image ? (
                 <img src={image} alt={`${day.monthDay} ${slotLabel(page)}`} loading="eager" decoding="async" className="h-auto w-full object-contain" />
               ) : (
@@ -1011,6 +1016,29 @@ function PrayerDeclarationPage({ declaration }: { declaration: PrayerDeclaration
           <p>{declaration.tip}</p>
           <div>✦ ♥ ✦</div>
         </section>
+      </div>
+    </article>
+  )
+}
+
+function PrayerRequestPage({ prayerRequest }: { prayerRequest: PrayerRequest }) {
+  return (
+    <article className="prayer-request-page">
+      <div className="prayer-request-inner">
+        <header className="prayer-request-title">
+          <p>함께 품고 기도해요</p>
+          <h2>{prayerRequest.title || '1분 기도요청'}</h2>
+          <div className="prayer-request-leaf">♥</div>
+        </header>
+
+        <section className="prayer-request-box">
+          <p>{prayerRequest.body}</p>
+        </section>
+
+        <footer className="prayer-request-footer">
+          <span>주님, 우리의 작은 기도를 기억해 주세요.</span>
+          <div>✦ ♥ ✦</div>
+        </footer>
       </div>
     </article>
   )
@@ -1406,6 +1434,7 @@ type PrayerMaterialBackup = {
   title: string
   prayerText: string
   declaration: PrayerDeclaration | null
+  prayerRequest: PrayerRequest | null
   images: Record<string, string | null>
   audio: string | null
 }
@@ -1423,6 +1452,7 @@ function buildPrayerMaterialsBackup(state: AppState): PrayerMaterialBackup[] {
       title: day.title,
       prayerText: getPrayerText(state, day.dayIndex),
       declaration: getPrayerDeclaration(state, day.dayIndex),
+      prayerRequest: getPrayerRequest(state, day.dayIndex),
       images,
       audio: getPrayerAudio(state, day.dayIndex),
     }
@@ -1458,6 +1488,10 @@ async function buildBackupZipFiles(backup: unknown, prayerMaterials: PrayerMater
             .join('\n'),
         ),
       )
+    }
+    if (material.prayerRequest) {
+      files.push(textBackupFile(`${dayFolder}/03-기도제목.json`, JSON.stringify(material.prayerRequest, null, 2)))
+      files.push(textBackupFile(`${dayFolder}/03-기도제목.txt`, `${material.prayerRequest.title}\n\n${material.prayerRequest.body}`))
     }
 
     for (const slot of PRAYER_IMAGE_SLOTS) {
@@ -1496,13 +1530,14 @@ async function buildBackupZipFiles(backup: unknown, prayerMaterials: PrayerMater
 
 function buildPrayerMaterialsCsv(prayerMaterials: PrayerMaterialBackup[]) {
   const rows = [
-    ['일차', '날짜', '제목', '기도문 텍스트 있음', '선포기도문 있음', '1페이지 이미지', '2페이지 이미지', '3페이지 이미지', '기도음악'],
+    ['일차', '날짜', '제목', '기도문 텍스트 있음', '선포기도문 있음', '기도제목 있음', '1페이지 이미지', '2페이지 이미지', '3페이지 이미지', '기도음악'],
     ...prayerMaterials.map((material) => [
       String(material.dayIndex),
       material.monthDay,
       material.title,
       material.prayerText.trim() ? '있음' : '없음',
       material.declaration ? '있음' : '없음',
+      material.prayerRequest ? '있음' : '없음',
       material.images['1'] ?? '',
       material.images['2'] ?? '',
       material.images['3'] ?? '',
@@ -1638,7 +1673,7 @@ function AdminPrayerUpload({ state, today, onRefresh }: { state: AppState; today
   const waitingDay = PRAYER_DAYS.find((day) => {
     const hasFirstPage = Boolean(getPrayerText(state, day.dayIndex) || getPrayerImage(state, day.dayIndex, 1))
     const hasSecondPage = Boolean(getPrayerDeclaration(state, day.dayIndex) || getPrayerImage(state, day.dayIndex, 2))
-    const hasThirdPage = Boolean(getPrayerImage(state, day.dayIndex, 3))
+    const hasThirdPage = Boolean(getPrayerRequest(state, day.dayIndex) || getPrayerImage(state, day.dayIndex, 3))
     return !(hasFirstPage && hasSecondPage && hasThirdPage)
   })
   const waitingLabel = waitingDay ? `${waitingDay.dayIndex}일차 기도문 대기중` : '기도문 준비 완료'
@@ -1685,6 +1720,18 @@ function AdminPrayerUpload({ state, today, onRefresh }: { state: AppState; today
     } catch (error) {
       console.error(error)
       setMessage('선포기도문 저장에 실패했어요. 잠시 후 다시 시도해 주세요.')
+      throw error
+    }
+  }
+
+  async function saveRequest(dayIndex: number, prayerRequest: PrayerRequest) {
+    try {
+      await savePrayerRequest(dayIndex, prayerRequest)
+      setMessage(`${dayIndex}일차 기도제목을 저장했어요.`)
+      onRefresh()
+    } catch (error) {
+      console.error(error)
+      setMessage('기도제목 저장에 실패했어요. 잠시 후 다시 시도해 주세요.')
       throw error
     }
   }
@@ -1737,10 +1784,11 @@ function AdminPrayerUpload({ state, today, onRefresh }: { state: AppState; today
           const hasAudio = Boolean(getPrayerAudio(state, day.dayIndex))
           const hasText = Boolean(getPrayerText(state, day.dayIndex))
           const hasDeclaration = Boolean(getPrayerDeclaration(state, day.dayIndex))
+          const hasRequest = Boolean(getPrayerRequest(state, day.dayIndex))
           return (
             <details key={day.dayIndex} className="rounded-2xl border border-stone-200 bg-white p-3">
               <summary className="cursor-pointer text-sm font-black">
-                {day.monthDay} · {day.dayIndex}일차 <span className="text-jewel-brown">텍스트 {hasText ? '있음' : '없음'} · 선포 {hasDeclaration ? '있음' : '없음'} · 이미지 {uploaded}/{PRAYER_IMAGE_SLOTS.length} · 음악 {hasAudio ? '있음' : '없음'}</span>
+                {day.monthDay} · {day.dayIndex}일차 <span className="text-jewel-brown">텍스트 {hasText ? '있음' : '없음'} · 선포 {hasDeclaration ? '있음' : '없음'} · 기도제목 {hasRequest ? '있음' : '없음'} · 이미지 {uploaded}/{PRAYER_IMAGE_SLOTS.length} · 음악 {hasAudio ? '있음' : '없음'}</span>
               </summary>
               <AdminPrayerTextEditor
                 initialText={getPrayerText(state, day.dayIndex)}
@@ -1749,6 +1797,10 @@ function AdminPrayerUpload({ state, today, onRefresh }: { state: AppState; today
               <AdminPrayerDeclarationEditor
                 initialDeclaration={getPrayerDeclaration(state, day.dayIndex)}
                 onSave={(declaration) => saveDeclaration(day.dayIndex, declaration)}
+              />
+              <AdminPrayerRequestEditor
+                initialRequest={getPrayerRequest(state, day.dayIndex)}
+                onSave={(prayerRequest) => saveRequest(day.dayIndex, prayerRequest)}
               />
               <div className="mt-3 grid gap-2 sm:grid-cols-3">
                 {slots.map((slot) => (
@@ -1930,6 +1982,88 @@ function AdminPrayerDeclarationEditor({
         {status === 'saving' ? '저장 중...' : '선포기도문 저장'}
       </button>
       {status === 'saved' && <p className="mt-2 text-xs font-black text-jewel-brown">저장했어요. 2페이지에 선포기도문 카드가 표시됩니다.</p>}
+      {status === 'failed' && <p className="mt-2 text-xs font-black text-red-700">저장에 실패했어요. 잠시 후 다시 눌러 주세요.</p>}
+    </div>
+  )
+}
+
+const DEFAULT_PRAYER_REQUEST: PrayerRequest = {
+  title: '1분 기도요청',
+  body: '',
+}
+
+function AdminPrayerRequestEditor({
+  initialRequest,
+  onSave,
+}: {
+  initialRequest: PrayerRequest | null
+  onSave: (prayerRequest: PrayerRequest) => void | Promise<void>
+}) {
+  const [prayerRequest, setPrayerRequest] = useState<PrayerRequest>(initialRequest ?? DEFAULT_PRAYER_REQUEST)
+  const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'failed'>('idle')
+
+  useEffect(() => {
+    setPrayerRequest(initialRequest ?? DEFAULT_PRAYER_REQUEST)
+    setStatus('idle')
+  }, [initialRequest])
+
+  function updateRequest(field: keyof PrayerRequest, value: string) {
+    setPrayerRequest((current) => ({ ...current, [field]: value }))
+    setStatus('idle')
+  }
+
+  async function handleSave() {
+    setStatus('saving')
+    try {
+      await onSave(prayerRequest)
+      setStatus('saved')
+    } catch {
+      setStatus('failed')
+    }
+  }
+
+  return (
+    <div className="mt-3 rounded-xl bg-amber-50/80 p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h4 className="text-sm font-black text-jewel-brown">3페이지 기도제목</h4>
+          <p className="mt-1 text-xs font-bold text-stone-500">저장하면 3페이지 이미지 대신 기도제목 카드가 표시됩니다.</p>
+        </div>
+        <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-jewel-brown shadow-sm">
+          내용 {prayerRequest.body.length.toLocaleString()}자
+        </span>
+      </div>
+
+      <label className="mt-3 block text-xs font-black text-jewel-brown">
+        제목
+        <input
+          value={prayerRequest.title}
+          onChange={(event) => updateRequest('title', event.target.value)}
+          className="field mt-2"
+          placeholder="1분 기도요청"
+        />
+      </label>
+
+      <label className="mt-3 block text-xs font-black text-jewel-brown">
+        내용
+        <textarea
+          value={prayerRequest.body}
+          onChange={(event) => updateRequest('body', event.target.value)}
+          rows={6}
+          className="mt-2 block w-full resize-y rounded-xl border border-jewel-gold/25 bg-white px-3 py-2 text-sm font-semibold leading-relaxed text-stone-800 outline-none focus:border-jewel-gold"
+          placeholder="기도제목을 입력하세요."
+        />
+      </label>
+
+      <button
+        type="button"
+        onClick={handleSave}
+        disabled={status === 'saving'}
+        className="mt-2 rounded-xl bg-jewel-ink px-4 py-2 text-xs font-black text-white"
+      >
+        {status === 'saving' ? '저장 중...' : '기도제목 저장'}
+      </button>
+      {status === 'saved' && <p className="mt-2 text-xs font-black text-jewel-brown">저장했어요. 3페이지에 기도제목 카드가 표시됩니다.</p>}
       {status === 'failed' && <p className="mt-2 text-xs font-black text-red-700">저장에 실패했어요. 잠시 후 다시 눌러 주세요.</p>}
     </div>
   )

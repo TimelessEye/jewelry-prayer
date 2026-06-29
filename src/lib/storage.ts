@@ -8,6 +8,7 @@ import type {
   Participant,
   ParticipantChild,
   PrayerDeclaration,
+  PrayerRequest,
 } from './types'
 
 const STATE_KEY = 'prayer-jewelry.state.v1'
@@ -74,6 +75,7 @@ type PrayerTextBundle = {
   v: 2
   prayerText: string
   declaration?: PrayerDeclaration
+  prayerRequest?: PrayerRequest
 }
 
 export function loadState(): AppState {
@@ -375,6 +377,13 @@ export function getPrayerDeclaration(state: AppState, dayIndex: number) {
   return declaration
 }
 
+export function getPrayerRequest(state: AppState, dayIndex: number) {
+  const prayerRequest = parsePrayerTextBundle(state.prayerTexts[String(dayIndex)] ?? '').prayerRequest
+  if (!prayerRequest) return null
+  if (!prayerRequest.body.trim()) return null
+  return prayerRequest
+}
+
 export async function savePrayerImage(dayIndex: number, slot: PrayerImageSlot, file: File) {
   if (supabase) {
     const extension = file.name.split('.').pop()?.toLowerCase() || 'png'
@@ -499,7 +508,7 @@ export async function savePrayerText(dayIndex: number, body: string) {
   }
 
   const state = loadState()
-  if (normalizedBody || existingBundle.declaration) state.prayerTexts[String(dayIndex)] = bundledBody
+  if (normalizedBody || existingBundle.declaration || existingBundle.prayerRequest) state.prayerTexts[String(dayIndex)] = bundledBody
   else delete state.prayerTexts[String(dayIndex)]
   saveState(state)
   return normalizedBody
@@ -532,10 +541,41 @@ export async function savePrayerDeclaration(dayIndex: number, declaration: Praye
     throwIfError(error)
   }
 
-  if (nextBundle.prayerText || nextBundle.declaration) state.prayerTexts[String(dayIndex)] = bundledBody
+  if (nextBundle.prayerText || nextBundle.declaration || nextBundle.prayerRequest) state.prayerTexts[String(dayIndex)] = bundledBody
   else delete state.prayerTexts[String(dayIndex)]
   saveState(state)
   return normalizedDeclaration
+}
+
+export async function savePrayerRequest(dayIndex: number, prayerRequest: PrayerRequest) {
+  const normalizedRequest: PrayerRequest = {
+    title: prayerRequest.title.trim() || '1분 기도요청',
+    body: prayerRequest.body.trim(),
+  }
+  const state = loadState()
+  const existingBundle = parsePrayerTextBundle(state.prayerTexts[String(dayIndex)] ?? '')
+  const nextBundle = {
+    ...existingBundle,
+    prayerRequest: normalizedRequest.body ? normalizedRequest : undefined,
+  }
+  const bundledBody = stringifyPrayerTextBundle(nextBundle)
+
+  if (supabase) {
+    const { error } = await supabase.from('prayer_texts').upsert(
+      {
+        day_index: dayIndex,
+        body: bundledBody,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'day_index' },
+    )
+    throwIfError(error)
+  }
+
+  if (nextBundle.prayerText || nextBundle.declaration || nextBundle.prayerRequest) state.prayerTexts[String(dayIndex)] = bundledBody
+  else delete state.prayerTexts[String(dayIndex)]
+  saveState(state)
+  return normalizedRequest
 }
 
 export function fillCurrentParticipantForDev(participantId: string) {
@@ -734,6 +774,7 @@ function parsePrayerTextBundle(raw: string): PrayerTextBundle {
         v: 2,
         prayerText: typeof parsed.prayerText === 'string' ? parsed.prayerText : '',
         declaration: normalizePrayerDeclaration(parsed.declaration),
+        prayerRequest: normalizePrayerRequest(parsed.prayerRequest),
       }
     }
   } catch {
@@ -747,9 +788,10 @@ function stringifyPrayerTextBundle(bundle: Partial<PrayerTextBundle>) {
     v: 2,
     prayerText: bundle.prayerText?.trim() ?? '',
     declaration: normalizePrayerDeclaration(bundle.declaration),
+    prayerRequest: normalizePrayerRequest(bundle.prayerRequest),
   }
-  if (!normalized.prayerText && !normalized.declaration) return ''
-  if (!normalized.declaration) return normalized.prayerText
+  if (!normalized.prayerText && !normalized.declaration && !normalized.prayerRequest) return ''
+  if (!normalized.declaration && !normalized.prayerRequest) return normalized.prayerText
   return JSON.stringify(normalized)
 }
 
@@ -763,6 +805,16 @@ function normalizePrayerDeclaration(declaration: unknown): PrayerDeclaration | u
     tip: typeof value.tip === 'string' ? value.tip.trim() : '',
   }
   return normalized.scripture || normalized.tip ? normalized : undefined
+}
+
+function normalizePrayerRequest(prayerRequest: unknown): PrayerRequest | undefined {
+  if (!prayerRequest || typeof prayerRequest !== 'object') return undefined
+  const value = prayerRequest as Partial<PrayerRequest>
+  const normalized = {
+    title: typeof value.title === 'string' && value.title.trim() ? value.title.trim() : '1분 기도요청',
+    body: typeof value.body === 'string' ? value.body.trim() : '',
+  }
+  return normalized.body ? normalized : undefined
 }
 
 function shouldWriteRemoteProgress() {
