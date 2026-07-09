@@ -2,6 +2,8 @@ import type { PrayerDay, Student } from './types'
 
 export const APP_TITLE = '20일 보석기도'
 export const ORG_LABEL = '용문교회 유치부'
+export const OFFICIAL_END_DATE = '2026-07-11'
+export const EXTENDED_END_DATE = '2026-07-17'
 
 export const ASSETS = {
   baseGem: '/images/collection/base-gem-transparent.png',
@@ -13,9 +15,19 @@ export const ASSETS = {
 }
 
 const TEACHER_COMPLETION_CARDS: Record<string, string> = {
+  강순진: '/images/teacher/completion-cards/kang-sunjin.png',
+  김현진: '/images/teacher/completion-cards/kim-hyunjin.png',
+  박옥희: '/images/teacher/completion-cards/park-okhee.png',
   성유리: '/images/teacher/completion-cards/Seong-Yuri.png',
   신미경: '/images/teacher/completion-cards/shin-migyeong.png',
+  오선녀: '/images/teacher/completion-cards/oh-sunnyeo.png',
+  윤정아: '/images/teacher/completion-cards/yun-jeongah.png',
+  이린자: '/images/teacher/completion-cards/Lee-rynja.png',
   이선예: '/images/teacher/completion-cards/Lee-seonyae.png',
+  정은지: '/images/teacher/completion-cards/Jung-eunji.png',
+  조문경: '/images/teacher/completion-cards/cho-munkyung.png',
+  조선영: '/images/teacher/completion-cards/cho-sunyoung.png',
+  홍명환: '/images/teacher/completion-cards/hong-myunghwan.png',
 }
 
 export const DEFAULT_TEACHER_COMPLETION_CARD = '/images/teacher/completion-card-sample.png'

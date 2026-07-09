@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import {
   ArrowLeft,
   CalendarDays,
@@ -25,6 +25,8 @@ import {
   DEFAULT_TEACHER_COMPLETION_CARD,
   GEM_COLORS,
   ORG_LABEL,
+  EXTENDED_END_DATE,
+  OFFICIAL_END_DATE,
   PRAYER_DAYS,
   PRAYER_IMAGE_SLOTS,
   STUDENTS,
@@ -72,6 +74,11 @@ type FinishCeremony = {
   count: number
   participantType: Participant['type']
 }
+type CompletionPrompt = {
+  count: number
+  participantType: Participant['type']
+}
+type CompletionCelebration = CompletionPrompt
 type CollectionCeremony = {
   dayIndex: number
   replay?: boolean
@@ -140,10 +147,14 @@ export default function App() {
   const [toast, setToast] = useState<string | null>(null)
   const [highlightDayIndex, setHighlightDayIndex] = useState<number | null>(null)
   const [finishCeremony, setFinishCeremony] = useState<FinishCeremony | null>(null)
+  const [completionCelebration, setCompletionCelebration] = useState<CompletionCelebration | null>(null)
+  const [completionPrompt, setCompletionPrompt] = useState<CompletionPrompt | null>(null)
   const [collectionCeremony, setCollectionCeremony] = useState<CollectionCeremony | null>(null)
   const didApplyDevProgress = useRef(false)
   const finishTimerRef = useRef<number | null>(null)
   const collectionTimerRef = useRef<number | null>(null)
+  const completionCelebrationTimerRef = useRef<number | null>(null)
+  const completionPromptTimerRef = useRef<number | null>(null)
 
   const participant = useMemo(
     () => state.participants.find((item) => item.id === currentId) ?? null,
@@ -188,6 +199,8 @@ export default function App() {
     return () => {
       if (finishTimerRef.current) window.clearTimeout(finishTimerRef.current)
       if (collectionTimerRef.current) window.clearTimeout(collectionTimerRef.current)
+      if (completionCelebrationTimerRef.current) window.clearTimeout(completionCelebrationTimerRef.current)
+      if (completionPromptTimerRef.current) window.clearTimeout(completionPromptTimerRef.current)
     }
   }, [])
 
@@ -242,6 +255,35 @@ export default function App() {
       setCollectionCeremony(null)
       setScreen('collection')
       showToast(message)
+    }, 2850)
+  }
+
+  function openFinalCollectionWithCertificatePrompt(nextState: AppState, dayIndex: number, nextParticipant: Participant, message: string) {
+    if (collectionTimerRef.current) window.clearTimeout(collectionTimerRef.current)
+    if (completionCelebrationTimerRef.current) window.clearTimeout(completionCelebrationTimerRef.current)
+    if (completionPromptTimerRef.current) window.clearTimeout(completionPromptTimerRef.current)
+    preloadImage(ASSETS.gemBoard)
+    preloadImage(COLLECTION_GEMS[dayIndex - 1] ?? ASSETS.baseGem)
+    setState(nextState)
+    setHighlightDayIndex(dayIndex)
+    setCompletionPrompt(null)
+    setCompletionCelebration(null)
+    setCollectionCeremony({ dayIndex })
+    collectionTimerRef.current = window.setTimeout(() => {
+      const prompt = {
+        count: getCompletionCount(nextParticipant.id, nextState),
+        participantType: nextParticipant.type,
+      }
+      setCollectionCeremony(null)
+      setScreen('collection')
+      showToast(message)
+      completionCelebrationTimerRef.current = window.setTimeout(() => {
+        setCompletionCelebration(prompt)
+        completionPromptTimerRef.current = window.setTimeout(() => {
+          setCompletionCelebration(null)
+          setCompletionPrompt(prompt)
+        }, 2400)
+      }, 1650)
     }, 2850)
   }
 
@@ -305,12 +347,14 @@ export default function App() {
                 setState(nextState)
                 const completedCount = getCompletionCount(participant.id, nextState)
                 if (completedCount === PRAYER_DAYS.length) {
-                  openCompleteWithCeremony(nextState, participant)
-                  showToast('20개의 기도보석을 모두 모았어요.')
-                } else if (participant.type === 'teacher' && selectedDay.dayIndex === PRAYER_DAYS.length) {
+                  openFinalCollectionWithCertificatePrompt(nextState, selectedDay.dayIndex, participant, '마지막 기도보석을 수집했어요.')
+                } else if (
+                  participant.type === 'parent' &&
+                  selectedDay.dayIndex === PRAYER_DAYS.length &&
+                  isOnOrAfterVisibleDate(EXTENDED_END_DATE)
+                ) {
                   await finalizeChallenge(participant.id)
-                  openCompleteWithCeremony(loadState(), participant)
-                  showToast('20일 보석기도를 마감했어요.')
+                  openFinalCollectionWithCertificatePrompt(loadState(), selectedDay.dayIndex, participant, '마지막 기도보석을 수집했어요.')
                 } else {
                   openCollectionWithCeremony(nextState, selectedDay.dayIndex, `${selectedDay.monthDay} 기도보석을 수집했어요.`)
                 }
@@ -329,6 +373,7 @@ export default function App() {
               onOpenPrayer={openPrayer}
               onToast={showToast}
               highlightDayIndex={highlightDayIndex}
+              completionCelebrating={Boolean(completionCelebration)}
             />
           )}
           {screen === 'all-prayers' && participant && (
@@ -351,6 +396,17 @@ export default function App() {
       </div>
       {toast && <div className="fixed bottom-5 left-1/2 z-50 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 rounded-full bg-jewel-ink px-4 py-3 text-center text-sm font-bold text-white shadow-card">{toast}</div>}
       {collectionCeremony && <CollectionCeremonyOverlay ceremony={collectionCeremony} />}
+      {completionCelebration && <BoardCompletionCelebration />}
+      {completionPrompt && participant && (
+        <CertificatePrompt
+          prompt={completionPrompt}
+          onCancel={() => setCompletionPrompt(null)}
+          onConfirm={() => {
+            setCompletionPrompt(null)
+            openCompleteWithCeremony(loadState(), participant)
+          }}
+        />
+      )}
       {finishCeremony && <FinishCeremonyOverlay ceremony={finishCeremony} />}
     </div>
   )
@@ -402,7 +458,7 @@ function StartScreen({
         <h1 className="mt-2 text-4xl font-black leading-tight text-jewel-ink">20일 보석기도</h1>
         <p className="mt-2 text-sm font-medium text-stone-600">20일 동안 다음세대를 위해 함께 기도해요</p>
         <p className="mt-3 rounded-full bg-white/70 px-4 py-2 text-sm font-black text-jewel-brown shadow-sm ring-1 ring-jewel-gold/25">
-          운영기간: 6/22(월)~7/11(토)
+          보석기도는 7/17(금)까지 연장 운영됩니다.
         </p>
       </div>
 
@@ -663,9 +719,20 @@ function HomeScreen({
   const remainingPublishedDays = PRAYER_DAYS.filter(
     (day) => isPrayerOpen(day, state) && !hasCompleted(participant.id, day.dayIndex, state),
   )
+  const finalPrayerDay = PRAYER_DAYS[PRAYER_DAYS.length - 1]
   const finalDayPublished = isPrayerOpen(PRAYER_DAYS[PRAYER_DAYS.length - 1], state)
-  const teacherFinalized = participant.type === 'teacher' && hasFinalizedChallenge(participant.id, state)
-  const teacherCanFinishAsIs = participant.type === 'teacher' && finalDayPublished && count < PRAYER_DAYS.length && !teacherFinalized
+  const finalized = hasFinalizedChallenge(participant.id, state)
+  const teacherFinalized = participant.type === 'teacher' && finalized
+  const parentFinalized = participant.type === 'parent' && finalized
+  const teacherCanFinishAsIs = participant.type === 'teacher' && isOnOrAfterVisibleDate(OFFICIAL_END_DATE) && finalDayPublished && count < PRAYER_DAYS.length && !teacherFinalized
+  const parentExtensionOpen = participant.type === 'parent' && isOnOrAfterVisibleDate(OFFICIAL_END_DATE) && !isOnOrAfterVisibleDate(EXTENDED_END_DATE) && count < PRAYER_DAYS.length
+  const parentCanFinalDayFinish =
+    participant.type === 'parent' &&
+    isOnOrAfterVisibleDate(EXTENDED_END_DATE) &&
+    finalDayPublished &&
+    count < PRAYER_DAYS.length &&
+    !parentFinalized
+  const finalPrayerCompleted = hasCompleted(participant.id, finalPrayerDay.dayIndex, state)
   const onlyFinalPrayerRemains =
     remainingPublishedDays.length === 1 && remainingPublishedDays[0]?.dayIndex === PRAYER_DAYS.length
 
@@ -717,6 +784,51 @@ function HomeScreen({
             <div className="h-full rounded-full bg-gradient-to-r from-jewel-rose via-jewel-gold to-jewel-teal" style={{ width: `${progress}%` }} />
           </div>
           <MiniGemRow participant={participant} state={state} />
+          {parentFinalized && (
+            <div className="mt-5 rounded-2xl border border-jewel-gold/40 bg-jewel-cream p-4">
+              <p className="text-sm font-black text-jewel-brown">20일 보석기도를 마감했어요.</p>
+              <p className="mt-1 text-xs font-bold leading-relaxed text-stone-600">완주 카드를 다시 볼 수 있어요.</p>
+              <button
+                type="button"
+                onClick={onComplete}
+                className="mt-3 w-full rounded-xl bg-jewel-ink px-3 py-3 text-sm font-black text-white"
+              >
+                완주 카드 보기
+              </button>
+            </div>
+          )}
+          {parentExtensionOpen && (
+            <div className="mt-5 rounded-2xl border border-jewel-gold/40 bg-jewel-cream p-4">
+              <p className="text-sm font-black text-jewel-brown">보석기도가 7월 17일까지 연장 운영됩니다.</p>
+              <p className="mt-1 text-xs font-bold leading-relaxed text-stone-600">
+                남은 기도를 이어가면 20일 기도 여정을 완성할 수 있어요.
+              </p>
+              <button
+                type="button"
+                onClick={onCollection}
+                className="mt-3 w-full rounded-xl bg-jewel-ink px-3 py-3 text-sm font-black text-white"
+              >
+                남은 기도 보기
+              </button>
+            </div>
+          )}
+          {parentCanFinalDayFinish && (
+            <div className="mt-5 rounded-2xl border border-jewel-gold/40 bg-jewel-cream p-4">
+              <p className="text-sm font-black text-jewel-brown">오늘은 연장 운영 마지막 날입니다.</p>
+              <p className="mt-1 text-xs font-bold leading-relaxed text-stone-600">
+                {finalPrayerCompleted
+                  ? '기도 여정을 여기서 마감하고 완주 카드를 받을 수 있어요.'
+                  : '마지막 기도를 마치면 완주 카드가 열립니다.'}
+              </p>
+              <button
+                type="button"
+                onClick={() => (finalPrayerCompleted ? onFinalize() : onPrayer(finalPrayerDay))}
+                className="mt-3 w-full rounded-xl bg-jewel-ink px-3 py-3 text-sm font-black text-white"
+              >
+                {finalPrayerCompleted ? '완주 카드 받기' : '마지막 기도하기'}
+              </button>
+            </div>
+          )}
           {teacherFinalized && (
             <div className="mt-5 rounded-2xl border border-jewel-gold/40 bg-jewel-cream p-4">
               <p className="text-sm font-black text-jewel-brown">20일 보석기도를 마감했어요.</p>
@@ -732,21 +844,21 @@ function HomeScreen({
           )}
           {teacherCanFinishAsIs && (
             <div className="mt-5 rounded-2xl border border-jewel-gold/40 bg-jewel-cream p-4">
-              <p className="text-sm font-black text-jewel-brown">오늘은 20일 보석기도 마지막 날입니다.</p>
+              <p className="text-sm font-black text-jewel-brown">성경학교 기도 기간이 마무리되었습니다.</p>
               <p className="mt-1 text-xs font-bold leading-relaxed text-stone-600">
-                남은 기도를 하시겠어요, 아니면 이대로 20일 보석기도를 마감하시겠습니까?
+                남은 기간 반 아이의 기도를 이어가시겠어요? 아니면 여기서 끝내시겠어요?
               </p>
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
                 <button type="button" onClick={onCollection} className="rounded-xl bg-white px-3 py-3 text-sm font-black text-jewel-brown ring-1 ring-jewel-gold/35">
-                  남은 기도 하기
+                  반 아이 기도 이어가기
                 </button>
                 <button type="button" onClick={onFinalize} className="rounded-xl bg-jewel-ink px-3 py-3 text-sm font-black text-white">
-                  이대로 마감하기
+                  여기서 끝내기
                 </button>
               </div>
             </div>
           )}
-          {!teacherCanFinishAsIs && !teacherFinalized && finalDayPublished && count < PRAYER_DAYS.length && remainingPublishedDays.length > 0 && (
+          {participant.type === 'parent' && !parentCanFinalDayFinish && !parentExtensionOpen && !parentFinalized && finalDayPublished && count < PRAYER_DAYS.length && remainingPublishedDays.length > 0 && (
             <div className="mt-5 rounded-2xl border border-jewel-gold/40 bg-jewel-cream p-4">
               <p className="text-sm font-black text-jewel-brown">
                 {onlyFinalPrayerRemains ? '마지막 남은 오늘의 기도에 참여하시겠습니까?' : '남은 기도를 완주하시겠습니까?'}
@@ -849,7 +961,7 @@ function PrayerScreen({
         <>
           {participant.type === 'teacher' && isFinalDay && count < PRAYER_DAYS.length && (
             <div className="mx-auto mb-4 max-w-2xl rounded-2xl border border-jewel-gold/40 bg-jewel-cream p-4 text-sm font-bold leading-relaxed text-jewel-brown">
-              이 기도를 마친 뒤 남은 기도를 더 하거나, 이대로 20일 보석기도를 마감할 수 있어요.
+              이 기도를 마친 뒤에도 반 아이를 위한 남은 기도를 이어갈 수 있어요.
             </div>
           )}
           {alreadyCollected && (
@@ -1130,6 +1242,7 @@ function CollectionScreen({
   onOpenPrayer,
   onToast,
   highlightDayIndex,
+  completionCelebrating,
 }: {
   participant: Participant
   state: AppState
@@ -1137,6 +1250,7 @@ function CollectionScreen({
   onOpenPrayer: (day: PrayerDay) => void
   onToast: (message: string) => void
   highlightDayIndex: number | null
+  completionCelebrating?: boolean
 }) {
   return (
     <Panel wide>
@@ -1148,7 +1262,7 @@ function CollectionScreen({
         홈으로
       </BackButton>
       <PageTitle eyebrow={participant.displayName} title="나의 보석 수집장" description="아직 수집하지 못한 보석 자리를 누르면 지난 기도문으로 이동합니다." />
-      <div className={`board-wrap ${isAllGemPreview() ? 'board-wrap-preview' : ''}`}>
+      <div className={`board-wrap ${isAllGemPreview() ? 'board-wrap-preview' : ''} ${completionCelebrating ? 'board-wrap-complete-celebration' : ''}`}>
         <img src={ASSETS.gemBoard} alt="" className="board-bg" loading="eager" decoding="async" />
         <div className="gem-grid">
           {PRAYER_DAYS.map((day) => {
@@ -1230,6 +1344,7 @@ function CompletionScreen({
   const teacherCompletionCardSrc = participant.type === 'teacher' ? getTeacherCompletionCardSrc(participant.teacherName) : null
   const [teacherCardSrc, setTeacherCardSrc] = useState(teacherCompletionCardSrc ?? DEFAULT_TEACHER_COMPLETION_CARD)
   const teacherCanSeeCard = participant.type === 'teacher' && (count === PRAYER_DAYS.length || hasFinalizedChallenge(participant.id, state))
+  const parentCanSeeCard = participant.type === 'parent' && (count === PRAYER_DAYS.length || hasFinalizedChallenge(participant.id, state))
 
   useEffect(() => {
     setTeacherCardSrc(teacherCompletionCardSrc ?? DEFAULT_TEACHER_COMPLETION_CARD)
@@ -1250,22 +1365,27 @@ function CompletionScreen({
       <BackButton onClick={onBack}>홈으로</BackButton>
       <PageTitle
         eyebrow={teacherCanSeeCard && count < PRAYER_DAYS.length ? '기도 마감' : '완주 축하'}
-        title={teacherCanSeeCard && count < PRAYER_DAYS.length ? '20일 보석기도를 마감했어요' : count === 20 ? '기도보석을 모두 모았어요' : '아직 모으는 중이에요'}
+        title={count === 20 ? '기도보석을 모두 모았어요' : teacherCanSeeCard || parentCanSeeCard ? '20일 보석기도를 마감했어요' : '아직 모으는 중이에요'}
         description={`${count}/20개의 기도보석을 수집했습니다.`}
       />
-      {count < 20 && !teacherCanSeeCard ? (
+      {count < 20 && !teacherCanSeeCard && !parentCanSeeCard ? (
         <div className="rounded-2xl bg-white p-6 text-center shadow-card">20개를 모두 모으면 완주 카드가 열립니다.</div>
       ) : teacherCanSeeCard ? (
         <div className="text-center">
-          <div className="teacher-completion-card shadow-card">
-            <img
-              src={teacherCardSrc}
-              alt={`${participant.displayName} 완주 카드`}
-              className="teacher-completion-template"
-              onError={() => {
-                if (teacherCardSrc !== DEFAULT_TEACHER_COMPLETION_CARD) setTeacherCardSrc(DEFAULT_TEACHER_COMPLETION_CARD)
-              }}
-            />
+          <div className="completion-card-scan-stage">
+            <div className="completion-card-scan-window">
+              <div className="teacher-completion-card shadow-card">
+                <img
+                  src={teacherCardSrc}
+                  alt={`${participant.displayName} 완주 카드`}
+                  className="teacher-completion-template"
+                  onError={() => {
+                    if (teacherCardSrc !== DEFAULT_TEACHER_COMPLETION_CARD) setTeacherCardSrc(DEFAULT_TEACHER_COMPLETION_CARD)
+                  }}
+                />
+              </div>
+            </div>
+            <div className="completion-card-scan-laser" />
           </div>
           <PrimaryButton className="mt-5" onClick={share} disabled={busy}>
             {busy ? '이미지 만드는 중...' : '카톡으로 공유하기'}
@@ -1273,12 +1393,17 @@ function CompletionScreen({
         </div>
       ) : (
         <div className="text-center">
-          <div className="parent-completion-card shadow-card">
-            <img src={ASSETS.parentCardTemplate} alt="" className="parent-completion-template" />
-            <p className="parent-completion-message">보석보다 귀한 어린이 {participant.displayName}<br />20일 보석기도 완주를 축하합니다☺️♥️</p>
+          <div className="completion-card-scan-stage">
+            <div className="completion-card-scan-window">
+              <div className="parent-completion-card shadow-card">
+                <img src={ASSETS.parentCardTemplate} alt="" className="parent-completion-template" />
+                <p className="parent-completion-message">보석보다 귀한 어린이 {participant.displayName}<br />20일 보석기도 완주를 축하합니다☺️♥️</p>
+              </div>
+            </div>
+            <div className="completion-card-scan-laser" />
           </div>
           <PrimaryButton className="mt-5" onClick={share} disabled={busy}>
-            {busy ? '이미지 만드는 중...' : '카톡으로 공유하기'}
+            {busy ? '이미지 만드는 중...' : '카톡으로 담임선생님께 알리기'}
           </PrimaryButton>
         </div>
       )}
@@ -1296,7 +1421,9 @@ function AdminScreen({ state, onBack, onRefresh }: { state: AppState; onBack: ()
   )
   const teacherParticipants = state.participants.filter((participant) => participant.type === 'teacher')
   const customParents = parentParticipants.filter((participant) => participant.source === 'custom')
-  const parentFinishers = parentParticipants.filter((participant) => getCompletionCount(participant.id, state) === 20)
+  const parentFinishers = parentParticipants.filter(
+    (participant) => getCompletionCount(participant.id, state) === 20 || hasFinalizedChallenge(participant.id, state),
+  )
   const teacherFinishers = teacherParticipants.filter(
     (participant) => getCompletionCount(participant.id, state) === 20 || hasFinalizedChallenge(participant.id, state),
   )
@@ -2217,6 +2344,10 @@ function getVisibleDateKey() {
   }).format(new Date())
 }
 
+function isOnOrAfterVisibleDate(dateKey: string) {
+  return getVisibleDateKey() >= dateKey
+}
+
 function HouseholdBothParents({ participants, state }: { participants: Participant[]; state: AppState }) {
   const byHome = new Map<string, Participant[]>()
   participants.forEach((participant) => {
@@ -2302,6 +2433,69 @@ function CollectModal({
   )
 }
 
+function CertificatePrompt({
+  prompt,
+  onCancel,
+  onConfirm,
+}: {
+  prompt: CompletionPrompt
+  onCancel: () => void
+  onConfirm: () => void
+}) {
+  const isFullCompletion = prompt.count >= PRAYER_DAYS.length
+  return (
+    <div className="fixed inset-0 z-[70] grid place-items-center bg-stone-950/55 px-4 backdrop-blur-sm">
+      <div className="w-full max-w-sm rounded-3xl border border-jewel-gold/40 bg-white p-6 text-center shadow-card">
+        <div className="mx-auto grid h-20 w-20 place-items-center rounded-full bg-jewel-cream text-jewel-brown shadow-glow">
+          <Sparkles size={34} />
+        </div>
+        <p className="mt-4 text-xs font-black uppercase tracking-[0.2em] text-jewel-brown">인증서 안내</p>
+        <h3 className="mt-2 text-2xl font-black leading-tight text-jewel-ink">
+          {isFullCompletion ? '보석을 다 모으셨습니다.' : '보석기도를 마치셨습니다.'}
+        </h3>
+        <p className="mt-2 text-sm font-bold leading-relaxed text-stone-600">
+          인증서를 확인하시겠어요?
+        </p>
+        <div className="mt-5 grid grid-cols-2 gap-2">
+          <button type="button" onClick={onCancel} className="rounded-xl bg-stone-100 py-3 text-sm font-black text-stone-600">
+            잠시 후에
+          </button>
+          <button type="button" onClick={onConfirm} className="rounded-xl bg-jewel-ink py-3 text-sm font-black text-white">
+            네, 확인할게요
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function BoardCompletionCelebration() {
+  return (
+    <div className="board-completion-overlay fixed inset-0 z-[65] grid place-items-center bg-[#2d241d]/20 px-4 backdrop-blur-[2px]">
+      <div className="board-completion-panel" aria-hidden="true">
+        <div className="board-completion-orbit">
+          {GEM_COLORS.map((color, index) => (
+            <span
+              key={`${color}-${index}`}
+              className="board-completion-gem"
+              style={{
+                '--gem-color': color,
+                '--start-x': `${Math.cos((index / GEM_COLORS.length) * Math.PI * 2) * 132}px`,
+                '--start-y': `${Math.sin((index / GEM_COLORS.length) * Math.PI * 2) * 102}px`,
+                '--delay': `${index * 32}ms`,
+              } as CSSProperties}
+            />
+          ))}
+          <div className="board-completion-certificate">
+            <Sparkles size={34} />
+          </div>
+        </div>
+        <p>인증서를 준비하고 있어요</p>
+      </div>
+    </div>
+  )
+}
+
 function CollectionCeremonyOverlay({ ceremony }: { ceremony: CollectionCeremony }) {
   const trailGems = [1, 2, 3, 4, 5, 6]
   void ceremony
@@ -2358,7 +2552,7 @@ function FinishCeremonyOverlay({ ceremony }: { ceremony: FinishCeremony }) {
         <h3 className="mt-1 text-2xl font-black leading-tight text-jewel-ink">
           보석들이 모여
           <br />
-          완주 카드가 열립니다
+          인증서가 열립니다
         </h3>
       </div>
     </div>
