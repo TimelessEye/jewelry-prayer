@@ -79,6 +79,9 @@ type CompletionPrompt = {
   participantType: Participant['type']
 }
 type CompletionCelebration = CompletionPrompt
+type ParentFinishChoicePrompt = {
+  day: PrayerDay
+}
 type CollectionCeremony = {
   dayIndex: number
   replay?: boolean
@@ -149,6 +152,7 @@ export default function App() {
   const [finishCeremony, setFinishCeremony] = useState<FinishCeremony | null>(null)
   const [completionCelebration, setCompletionCelebration] = useState<CompletionCelebration | null>(null)
   const [completionPrompt, setCompletionPrompt] = useState<CompletionPrompt | null>(null)
+  const [parentFinishChoicePrompt, setParentFinishChoicePrompt] = useState<ParentFinishChoicePrompt | null>(null)
   const [collectionCeremony, setCollectionCeremony] = useState<CollectionCeremony | null>(null)
   const didApplyDevProgress = useRef(false)
   const finishTimerRef = useRef<number | null>(null)
@@ -217,13 +221,40 @@ export default function App() {
     setScreen('home')
   }
 
+  function enterPrayerScreen(day: PrayerDay) {
+    setSelectedDay(day)
+    setScreen('prayer')
+  }
+
   function openPrayer(day: PrayerDay) {
     if (!isPrayerOpen(day, state)) {
       showToast(getPrayerLockedMessage(day))
       return
     }
-    setSelectedDay(day)
-    setScreen('prayer')
+
+    if (participant?.type === 'parent') {
+      const count = getCompletionCount(participant.id, state)
+      const finalized = hasFinalizedChallenge(participant.id, state)
+
+      if (count < PRAYER_DAYS.length && finalized) {
+        setScreen('complete')
+        return
+      }
+
+      if (count < PRAYER_DAYS.length && !finalized && isWithinVisibleDateRange(OFFICIAL_END_DATE, EXTENDED_END_DATE)) {
+        setParentFinishChoicePrompt({ day })
+        return
+      }
+    }
+
+    enterPrayerScreen(day)
+  }
+
+  async function finishParentChallengeToday() {
+    if (!participant || participant.type !== 'parent') return
+    await finalizeChallenge(participant.id)
+    setParentFinishChoicePrompt(null)
+    openCompleteWithCeremony(loadState(), participant)
   }
 
   function showToast(message: string) {
@@ -407,6 +438,17 @@ export default function App() {
       {toast && <div className="fixed bottom-5 left-1/2 z-50 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 rounded-full bg-jewel-ink px-4 py-3 text-center text-sm font-bold text-white shadow-card">{toast}</div>}
       {collectionCeremony && <CollectionCeremonyOverlay ceremony={collectionCeremony} />}
       {completionCelebration && <BoardCompletionCelebration />}
+      {parentFinishChoicePrompt && (
+        <ParentFinishChoiceModal
+          onFinish={finishParentChallengeToday}
+          onContinue={() => {
+            const day = parentFinishChoicePrompt.day
+            setParentFinishChoicePrompt(null)
+            enterPrayerScreen(day)
+          }}
+          onClose={() => setParentFinishChoicePrompt(null)}
+        />
+      )}
       {completionPrompt && participant && (
         <CertificatePrompt
           prompt={completionPrompt}
@@ -832,10 +874,10 @@ function HomeScreen({
               </p>
               <button
                 type="button"
-                onClick={() => (finalPrayerCompleted ? onFinalize() : onPrayer(finalPrayerDay))}
+                onClick={() => onPrayer(finalPrayerDay)}
                 className="mt-3 w-full rounded-xl bg-jewel-ink px-3 py-3 text-sm font-black text-white"
               >
-                {finalPrayerCompleted ? '완주 카드 받기' : '마지막 기도하기'}
+                {finalPrayerCompleted ? '마무리 선택하기' : '마지막 기도하기'}
               </button>
             </div>
           )}
@@ -2358,6 +2400,11 @@ function isOnOrAfterVisibleDate(dateKey: string) {
   return getVisibleDateKey() >= dateKey
 }
 
+function isWithinVisibleDateRange(startKey: string, endKey: string) {
+  const dateKey = getVisibleDateKey()
+  return dateKey >= startKey && dateKey <= endKey
+}
+
 function HouseholdBothParents({ participants, state }: { participants: Participant[]; state: AppState }) {
   const byHome = new Map<string, Participant[]>()
   participants.forEach((participant) => {
@@ -2474,6 +2521,51 @@ function CertificatePrompt({
             네, 확인할게요
           </button>
         </div>
+      </div>
+    </div>
+  )
+}
+
+function ParentFinishChoiceModal({
+  onFinish,
+  onContinue,
+  onClose,
+}: {
+  onFinish: () => void | Promise<void>
+  onContinue: () => void
+  onClose: () => void
+}) {
+  return (
+    <div className="fixed inset-0 z-[70] grid place-items-center bg-stone-950/55 px-4 backdrop-blur-sm">
+      <div className="relative w-full max-w-md rounded-3xl border border-jewel-gold/35 bg-white p-6 text-center shadow-card">
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="닫기"
+          className="absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-full bg-stone-100 text-xl font-black text-stone-500"
+        >
+          ×
+        </button>
+        <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-jewel-cream text-jewel-brown shadow-glow">
+          <Gem size={30} />
+        </div>
+        <p className="mt-4 text-xs font-black uppercase tracking-[0.18em] text-jewel-brown">연장 운영 안내</p>
+        <h3 className="mt-2 text-2xl font-black leading-tight text-jewel-ink">오늘 기도를 마무리할까요?</h3>
+        <p className="mt-3 text-sm font-bold leading-relaxed text-stone-600">
+          20일 보석기도의 공식 마지막 날은 7월 11일입니다. 여기까지 함께한 기도도 소중합니다.
+          오늘 카드로 마무리하거나, 7월 17일까지 남은 기도를 이어갈 수 있어요.
+        </p>
+        <div className="mt-5 grid gap-2">
+          <button type="button" onClick={onFinish} className="rounded-xl bg-jewel-ink py-3 text-sm font-black text-white">
+            카드 받고 마무리하기
+          </button>
+          <button type="button" onClick={onContinue} className="rounded-xl border border-jewel-gold/45 bg-jewel-cream py-3 text-sm font-black text-jewel-brown">
+            남은 기도 이어가기
+          </button>
+        </div>
+        <p className="mt-3 text-xs font-bold leading-relaxed text-stone-500">
+          7월 17일까지 이어가면 남은 기도를 계속 드릴 수 있습니다.
+        </p>
       </div>
     </div>
   )
