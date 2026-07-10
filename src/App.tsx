@@ -361,6 +361,16 @@ export default function App() {
               }}
               onReplayCollection={async () => {
                 const nextState = await loadInteractiveState()
+                const completedCount = getCompletionCount(participant.id, nextState)
+                const shouldReplayCertificate =
+                  selectedDay.dayIndex === PRAYER_DAYS.length &&
+                  (completedCount === PRAYER_DAYS.length || hasFinalizedChallenge(participant.id, nextState))
+
+                if (shouldReplayCertificate) {
+                  openFinalCollectionWithCertificatePrompt(nextState, selectedDay.dayIndex, participant, '마지막 기도보석을 다시 보여드릴게요.')
+                  return
+                }
+
                 openCollectionWithCeremony(nextState, selectedDay.dayIndex, `${selectedDay.monthDay} 기도보석을 다시 보여드릴게요.`, true)
               }}
             />
