@@ -236,11 +236,6 @@ export default function App() {
       const count = getCompletionCount(participant.id, state)
       const finalized = hasFinalizedChallenge(participant.id, state)
 
-      if (count < PRAYER_DAYS.length && finalized) {
-        setScreen('complete')
-        return
-      }
-
       if (count < PRAYER_DAYS.length && !finalized && isWithinVisibleDateRange(OFFICIAL_END_DATE, EXTENDED_END_DATE)) {
         setParentFinishChoicePrompt({ day })
         return
