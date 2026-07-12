@@ -17,9 +17,9 @@ export async function createCompletionCard(participant: Participant) {
     await drawParentCardV2(ctx, participant)
   }
 
-  const blob = await new Promise<Blob>((resolve, reject) => {
+  const blob = await withTimeout(new Promise<Blob>((resolve, reject) => {
     canvas.toBlob((result) => (result ? resolve(result) : reject(new Error('이미지 생성 실패'))), 'image/png')
-  })
+  }), 12000, '이미지 생성 시간이 너무 오래 걸리고 있어요. 다시 시도해 주세요.')
   return blob
 }
 
@@ -31,11 +31,11 @@ export async function shareCompletionCard(participant: Participant, blob: Blob) 
       : `보석보다 귀한 어린이 ${participant.displayName} 20일 보석기도 완주를 축하합니다☺️♥️`
 
   if (navigator.canShare?.({ files: [file] })) {
-    await navigator.share({
+    await withTimeout(navigator.share({
       title: '20일 보석기도 완주',
       text,
       files: [file],
-    })
+    }), 30000, '공유창이 열리지 않았어요. 이미지를 저장한 뒤 카톡에서 직접 공유해 주세요.')
     return
   }
 
@@ -45,7 +45,7 @@ export async function shareCompletionCard(participant: Participant, blob: Blob) 
   a.download = file.name
   a.click()
   URL.revokeObjectURL(url)
-  await navigator.clipboard?.writeText(text).catch(() => {})
+  void navigator.clipboard?.writeText(text).catch(() => undefined)
 }
 
 async function drawParentCardV2(ctx: CanvasRenderingContext2D, participant: Participant) {
@@ -75,11 +75,21 @@ async function drawTeacherImageCard(ctx: CanvasRenderingContext2D, src: string |
 }
 
 function loadImage(src: string) {
-  return new Promise<HTMLImageElement>((resolve, reject) => {
+  return withTimeout(new Promise<HTMLImageElement>((resolve, reject) => {
     const image = new Image()
     image.onload = () => resolve(image)
     image.onerror = () => reject(new Error(`이미지를 불러오지 못했어요: ${src}`))
     image.src = src
+  }), 12000, '카드 이미지를 불러오지 못했어요. 새로고침 후 다시 시도해 주세요.')
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number, message: string) {
+  let timer: number | undefined
+  const timeout = new Promise<T>((_, reject) => {
+    timer = window.setTimeout(() => reject(new Error(message)), ms)
+  })
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timer) window.clearTimeout(timer)
   })
 }
 

@@ -1402,6 +1402,8 @@ function CompletionScreen({
     try {
       const blob = await createCompletionCard(participant)
       await shareCompletionCard(participant, blob)
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : '공유 이미지를 준비하지 못했어요. 잠시 뒤 다시 시도해 주세요.')
     } finally {
       setBusy(false)
     }
