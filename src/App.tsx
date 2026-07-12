@@ -1444,7 +1444,11 @@ function CompletionScreen({
             <div className="completion-card-scan-window">
               <div className="parent-completion-card shadow-card">
                 <img src={ASSETS.parentCardTemplate} alt="" className="parent-completion-template" />
-                <p className="parent-completion-message">보석보다 귀한 어린이 {participant.displayName}<br />20일 보석기도 완주를 축하합니다☺️♥️</p>
+                <p className="parent-completion-message">
+                  <span>보석보다 귀한 어린이 {participant.displayName}</span>
+                  <span>20일 보석기도 완주를 축하합니다</span>
+                  <span className="parent-completion-emoji" aria-hidden="true">☺️ ♥️</span>
+                </p>
               </div>
             </div>
             <div className="completion-card-scan-laser" />

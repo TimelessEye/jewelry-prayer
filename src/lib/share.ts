@@ -53,8 +53,8 @@ async function drawParentCardV2(ctx: CanvasRenderingContext2D, participant: Part
   ctx.drawImage(template, 0, 0, 1080, 1440)
   drawParentTemplateMessage(ctx, [
     `보석보다 귀한 어린이 ${participant.displayName}`,
-    '20일 보석기도 완주를 축하합니다☺️♥️',
-  ])
+    '20일 보석기도 완주를 축하합니다',
+  ], '☺️ ♥️')
 }
 
 async function drawImageCard(ctx: CanvasRenderingContext2D, src: string) {
@@ -110,6 +110,15 @@ function drawCenteredSansText(
   ctx.fillText(text, x, y)
 }
 
+function drawCenteredEmoji(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, size: number) {
+  ctx.save()
+  ctx.font = `${size}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText(text, x, y)
+  ctx.restore()
+}
+
 function splitTextForWidth(ctx: CanvasRenderingContext2D, text: string, maxWidth: number) {
   const units = text.includes(' ') ? text.split(' ') : Array.from(text)
   const separator = text.includes(' ') ? ' ' : ''
@@ -130,17 +139,21 @@ function splitTextForWidth(ctx: CanvasRenderingContext2D, text: string, maxWidth
   return lines
 }
 
-function drawParentTemplateMessage(ctx: CanvasRenderingContext2D, lines: string[]) {
+function drawParentTemplateMessage(ctx: CanvasRenderingContext2D, lines: string[], emoji = '') {
   ctx.save()
   const wrappedLines = lines.flatMap((line) => {
-    ctx.font = '900 52px "Cute Font", "Pretendard", "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif'
+    ctx.font = '900 46px "Pretendard", "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif'
     return splitTextForWidth(ctx, line, 920)
   }).slice(0, 4)
   const lineHeight = wrappedLines.length > 2 ? 48 : 58
-  const fontSize = wrappedLines.length > 2 ? 42 : 50
-  const startY = 1265 - ((wrappedLines.length - 1) * lineHeight) / 2
+  const fontSize = wrappedLines.length > 2 ? 40 : 46
+  const emojiOffset = emoji ? 40 : 0
+  const startY = 1252 - (((wrappedLines.length - 1) * lineHeight) + emojiOffset) / 2
   wrappedLines.forEach((line, index) => {
     drawCenteredSansText(ctx, line, 540, startY + index * lineHeight, fontSize, '#2d241d', '900')
   })
+  if (emoji) {
+    drawCenteredEmoji(ctx, emoji, 540, startY + wrappedLines.length * lineHeight - 6, 36)
+  }
   ctx.restore()
 }
