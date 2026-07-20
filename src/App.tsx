@@ -1632,26 +1632,51 @@ async function downloadPrayerImageArchive(state: AppState) {
   const dateKey = createdAt.toISOString().slice(0, 10)
   const prayerMaterials = buildPrayerMaterialsBackup(state)
   const files: BackupFile[] = []
+  const failedResources: string[] = []
 
   await document.fonts?.load('900 48px "NanumBarunGothic"').catch(() => undefined)
   await document.fonts?.load('900 48px "Noto Sans KR"').catch(() => undefined)
 
   for (const material of prayerMaterials) {
-    const dayFolder = `기도문이미지/day-${String(material.dayIndex).padStart(2, '0')}`
+    const dayPrefix = String(material.dayIndex).padStart(2, '0')
     if (material.prayerText.trim()) {
       const blob = await renderPrayerTextImage(material)
       files.push({
-        path: `${dayFolder}/01-기도문.png`,
+        path: `기도문이미지/${dayPrefix}-기도문.png`,
         data: new Uint8Array(await blob.arrayBuffer()),
       })
+    } else if (material.images['1']) {
+      try {
+        const fetched = await fetchBackupResource(material.images['1'], 'prayer-page')
+        files.push({
+          path: `기도문이미지/${dayPrefix}-기도문.${fetched.extension}`,
+          data: fetched.data,
+        })
+      } catch {
+        failedResources.push(`${material.dayIndex}일차 기도문 이미지`)
+      }
     }
     if (material.declaration) {
       const blob = await renderPrayerDeclarationImage(material)
       files.push({
-        path: `${dayFolder}/02-선포기도문.png`,
+        path: `기도문이미지/${dayPrefix}-선포기도문.png`,
         data: new Uint8Array(await blob.arrayBuffer()),
       })
+    } else if (material.images['2']) {
+      try {
+        const fetched = await fetchBackupResource(material.images['2'], 'declaration-page')
+        files.push({
+          path: `기도문이미지/${dayPrefix}-선포기도문.${fetched.extension}`,
+          data: fetched.data,
+        })
+      } catch {
+        failedResources.push(`${material.dayIndex}일차 선포기도문 이미지`)
+      }
     }
+  }
+
+  if (failedResources.length > 0) {
+    files.push(textBackupFile('다운로드-실패-목록.txt', failedResources.join('\n')))
   }
 
   if (files.length === 0) {
