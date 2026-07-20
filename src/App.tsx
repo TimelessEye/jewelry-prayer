@@ -1469,6 +1469,7 @@ function AdminScreen({ state, onBack, onRefresh }: { state: AppState; onBack: ()
   const [code, setCode] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [backupStatus, setBackupStatus] = useState<'idle' | 'running' | 'error'>('idle')
+  const [imageExportStatus, setImageExportStatus] = useState<'idle' | 'running' | 'error'>('idle')
   const parentParticipants = state.participants.filter(
     (participant) => participant.type === 'parent' && !HIDDEN_ADMIN_PARENT_NAMES.has(participant.displayName),
   )
@@ -1518,26 +1519,50 @@ function AdminScreen({ state, onBack, onRefresh }: { state: AppState; onBack: ()
     <Panel wide>
       <BackButton onClick={onBack}>돌아가기</BackButton>
       <PageTitle eyebrow="관리자" title="20일 보석기도 현황" description="부모와 교사 통계를 분리해서 확인합니다." />
-      <button
-        type="button"
-        onClick={async () => {
-          try {
-            setBackupStatus('running')
-            await downloadAdminBackup(state, backupSummary)
-            setBackupStatus('idle')
-          } catch {
-            setBackupStatus('error')
-          }
-        }}
-        disabled={backupStatus === 'running'}
-        className="flex items-center justify-center gap-2 rounded-2xl bg-jewel-ink px-5 py-4 text-sm font-black text-white shadow-card transition hover:bg-jewel-brown"
-      >
-        <Download size={18} />
-        {backupStatus === 'running' ? '백업 파일 만드는 중...' : '참여 기록·기도자료 전체 백업 다운로드'}
-      </button>
+      <div className="grid gap-3 lg:grid-cols-2">
+        <button
+          type="button"
+          onClick={async () => {
+            try {
+              setBackupStatus('running')
+              await downloadAdminBackup(state, backupSummary)
+              setBackupStatus('idle')
+            } catch {
+              setBackupStatus('error')
+            }
+          }}
+          disabled={backupStatus === 'running'}
+          className="flex items-center justify-center gap-2 rounded-2xl bg-jewel-ink px-5 py-4 text-sm font-black text-white shadow-card transition hover:bg-jewel-brown disabled:opacity-60"
+        >
+          <Download size={18} />
+          {backupStatus === 'running' ? '백업 파일 만드는 중...' : '참여 기록·기도자료 전체 백업 다운로드'}
+        </button>
+        <button
+          type="button"
+          onClick={async () => {
+            try {
+              setImageExportStatus('running')
+              await downloadPrayerImageArchive(state)
+              setImageExportStatus('idle')
+            } catch {
+              setImageExportStatus('error')
+            }
+          }}
+          disabled={imageExportStatus === 'running'}
+          className="flex items-center justify-center gap-2 rounded-2xl bg-white px-5 py-4 text-sm font-black text-jewel-ink shadow-card ring-1 ring-stone-200 transition hover:bg-jewel-cream disabled:opacity-60"
+        >
+          <Download size={18} />
+          {imageExportStatus === 'running' ? '기도문 이미지 만드는 중...' : '기도문 1·2페이지 이미지 다운로드'}
+        </button>
+      </div>
       {backupStatus === 'error' && (
         <p className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
           백업 파일을 만드는 중 문제가 생겼어요. 인터넷 연결을 확인하고 다시 눌러 주세요.
+        </p>
+      )}
+      {imageExportStatus === 'error' && (
+        <p className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+          기도문 이미지를 만드는 중 문제가 생겼어요. 새로고침 후 다시 눌러 주세요.
         </p>
       )}
       <div className="grid gap-3 lg:grid-cols-2">
@@ -1600,6 +1625,41 @@ async function downloadAdminBackup(
   const files = await buildBackupZipFiles(backup, prayerMaterials)
   const blob = createZipBlob(files)
   downloadBlob(blob, `jewelry-prayer-full-backup-${dateKey}.zip`)
+}
+
+async function downloadPrayerImageArchive(state: AppState) {
+  const createdAt = new Date()
+  const dateKey = createdAt.toISOString().slice(0, 10)
+  const prayerMaterials = buildPrayerMaterialsBackup(state)
+  const files: BackupFile[] = []
+
+  await document.fonts?.load('900 48px "NanumBarunGothic"').catch(() => undefined)
+  await document.fonts?.load('900 48px "Noto Sans KR"').catch(() => undefined)
+
+  for (const material of prayerMaterials) {
+    const dayFolder = `기도문이미지/day-${String(material.dayIndex).padStart(2, '0')}`
+    if (material.prayerText.trim()) {
+      const blob = await renderPrayerTextImage(material)
+      files.push({
+        path: `${dayFolder}/01-기도문.png`,
+        data: new Uint8Array(await blob.arrayBuffer()),
+      })
+    }
+    if (material.declaration) {
+      const blob = await renderPrayerDeclarationImage(material)
+      files.push({
+        path: `${dayFolder}/02-선포기도문.png`,
+        data: new Uint8Array(await blob.arrayBuffer()),
+      })
+    }
+  }
+
+  if (files.length === 0) {
+    files.push(textBackupFile('안내.txt', '저장된 기도문 텍스트나 선포기도문이 아직 없어요.'))
+  }
+
+  const blob = createZipBlob(files)
+  downloadBlob(blob, `20일-보석기도-기도문이미지-${dateKey}.zip`)
 }
 
 type BackupFile = {
@@ -1743,6 +1803,285 @@ function textBackupFile(path: string, value: string): BackupFile {
     path,
     data: new TextEncoder().encode(value),
   }
+}
+
+async function renderPrayerTextImage(material: PrayerMaterialBackup) {
+  const width = 1080
+  const bodyX = 118
+  const bodyWidth = width - bodyX * 2
+  const fontSize = 42
+  const lineHeight = 74
+  const bodyPaddingX = 58
+  const bodyPaddingY = 58
+  const maxTextWidth = bodyWidth - bodyPaddingX * 2
+  const paragraphs = material.prayerText
+    .trim()
+    .split(/\n{2,}/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean)
+
+  const measureCanvas = document.createElement('canvas')
+  const measureCtx = measureCanvas.getContext('2d')
+  if (!measureCtx) throw new Error('기도문 이미지를 만들 수 없어요.')
+  measureCtx.font = `800 ${fontSize}px ${exportFontFamily()}`
+
+  const paragraphLines = paragraphs.map((paragraph) =>
+    paragraph
+      .split('\n')
+      .flatMap((line) => wrapCanvasText(measureCtx, line.trim(), maxTextWidth)),
+  )
+  const textHeight = paragraphLines.reduce((sum, lines) => sum + lines.length * lineHeight, 0)
+  const paragraphGap = Math.max(0, paragraphLines.length - 1) * 34
+  const bodyHeight = bodyPaddingY * 2 + textHeight + paragraphGap
+  const height = Math.max(1440, 340 + bodyHeight + 150)
+  const { canvas, ctx } = createExportCanvas(width, height)
+
+  drawPrayerExportBackground(ctx, width, height)
+  drawCenteredPill(ctx, `${material.dayIndex}일차 기도문`, width / 2, 138, 330, 72, '#f3e6ff', '#6f3bd2', 30)
+  drawCanvasText(ctx, material.monthDay, width / 2, 232, 29, '#8b5e34', '900', 'center')
+
+  fillRoundRect(ctx, bodyX, 300, bodyWidth, bodyHeight, 34, 'rgba(255, 255, 255, 0.80)')
+  strokeRoundRect(ctx, bodyX, 300, bodyWidth, bodyHeight, 34, 'rgba(255, 145, 202, 0.48)', 3)
+
+  let y = 300 + bodyPaddingY + lineHeight / 2
+  ctx.font = `800 ${fontSize}px ${exportFontFamily()}`
+  ctx.fillStyle = '#2f251f'
+  ctx.textAlign = 'left'
+  ctx.textBaseline = 'middle'
+
+  for (const lines of paragraphLines) {
+    for (const line of lines) {
+      ctx.fillText(line, bodyX + bodyPaddingX, y)
+      y += lineHeight
+    }
+    y += 34
+  }
+
+  drawCanvasText(ctx, APP_TITLE, width / 2, height - 86, 30, '#9a6a39', '900', 'center')
+  return canvasToPngBlob(canvas)
+}
+
+async function renderPrayerDeclarationImage(material: PrayerMaterialBackup) {
+  if (!material.declaration) throw new Error('선포기도문이 없어요.')
+  const declaration = material.declaration
+  const width = 1080
+  const fontFamily = exportFontFamily()
+  const scriptureFont = 46
+  const scriptureLineHeight = 76
+  const tipFont = 42
+  const tipLineHeight = 70
+  const boxX = 108
+  const boxWidth = width - boxX * 2
+  const boxPaddingX = 58
+  const measureCanvas = document.createElement('canvas')
+  const measureCtx = measureCanvas.getContext('2d')
+  if (!measureCtx) throw new Error('선포기도문 이미지를 만들 수 없어요.')
+
+  measureCtx.font = `850 ${scriptureFont}px ${fontFamily}`
+  const scriptureLines = wrapCanvasText(measureCtx, declaration.scripture, boxWidth - boxPaddingX * 2)
+  measureCtx.font = `850 ${tipFont}px ${fontFamily}`
+  const tipLines = declaration.tip
+    .split('\n')
+    .flatMap((line) => wrapCanvasText(measureCtx, line.trim(), boxWidth - boxPaddingX * 2))
+  const scriptureBoxHeight = Math.max(250, 92 + scriptureLines.length * scriptureLineHeight + (declaration.reference ? 58 : 0))
+  const tipBoxHeight = Math.max(430, 150 + tipLines.length * tipLineHeight + 72)
+  const height = Math.max(1440, 260 + scriptureBoxHeight + 112 + tipBoxHeight + 160)
+  const { canvas, ctx } = createExportCanvas(width, height)
+
+  drawPrayerExportBackground(ctx, width, height)
+  drawCanvasText(ctx, '말씀으로 축복하기', width / 2, 102, 30, '#7b4ad8', '900', 'center')
+  drawCanvasText(ctx, declaration.title || '선포 기도문', width / 2, 184, 74, '#6f3bd2', '900', 'center')
+  drawDecorativeHeartLine(ctx, width / 2, 268, 620)
+
+  const scriptureY = 330
+  fillRoundRect(ctx, boxX, scriptureY, boxWidth, scriptureBoxHeight, 34, 'rgba(255, 255, 255, 0.82)')
+  strokeRoundRect(ctx, boxX, scriptureY, boxWidth, scriptureBoxHeight, 34, 'rgba(255, 101, 173, 0.46)', 3)
+  let y = scriptureY + 64 + scriptureLineHeight / 2
+  scriptureLines.forEach((line) => {
+    drawCanvasText(ctx, line, width / 2, y, scriptureFont, '#1f1a17', '850', 'center')
+    y += scriptureLineHeight
+  })
+  if (declaration.reference) {
+    drawCanvasText(ctx, `(${declaration.reference})`, width / 2, scriptureY + scriptureBoxHeight - 56, 34, '#4f453d', '850', 'center')
+  }
+
+  const tipY = scriptureY + scriptureBoxHeight + 112
+  drawDecorativeHeartLine(ctx, width / 2, tipY - 50, 780)
+  fillRoundRect(ctx, boxX, tipY, boxWidth, tipBoxHeight, 36, 'rgba(255, 255, 255, 0.68)')
+  strokeRoundRect(ctx, boxX, tipY, boxWidth, tipBoxHeight, 36, 'rgba(188, 141, 242, 0.58)', 3)
+  drawCenteredPill(ctx, '선포 기도 안내', width / 2, tipY + 76, 360, 76, '#eadbff', '#6f3bd2', 38)
+  y = tipY + 158 + tipLineHeight / 2
+  tipLines.forEach((line) => {
+    drawCanvasText(ctx, line, width / 2, y, tipFont, '#1f1a17', '850', 'center')
+    y += tipLineHeight
+  })
+  drawCanvasText(ctx, '✦  ♥  ✦', width / 2, tipY + tipBoxHeight - 62, 34, '#b88df2', '900', 'center')
+  drawCanvasText(ctx, `${material.dayIndex}일차 · ${material.monthDay}`, width / 2, height - 86, 30, '#9a6a39', '900', 'center')
+
+  return canvasToPngBlob(canvas)
+}
+
+function createExportCanvas(width: number, height: number) {
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  const ctx = canvas.getContext('2d')
+  if (!ctx) throw new Error('이미지를 만들 수 없어요.')
+  return { canvas, ctx }
+}
+
+function drawPrayerExportBackground(ctx: CanvasRenderingContext2D, width: number, height: number) {
+  const base = ctx.createLinearGradient(0, 0, width, height)
+  base.addColorStop(0, '#f5e9ff')
+  base.addColorStop(0.45, '#fffafd')
+  base.addColorStop(1, '#fff4d8')
+  ctx.fillStyle = base
+  ctx.fillRect(0, 0, width, height)
+
+  const lavender = ctx.createRadialGradient(90, 10, 20, 90, 10, 430)
+  lavender.addColorStop(0, 'rgba(219, 199, 255, 0.86)')
+  lavender.addColorStop(1, 'rgba(219, 199, 255, 0)')
+  ctx.fillStyle = lavender
+  ctx.fillRect(0, 0, width, height)
+
+  const ivory = ctx.createRadialGradient(width - 40, 40, 20, width - 40, 40, 470)
+  ivory.addColorStop(0, 'rgba(255, 246, 218, 0.98)')
+  ivory.addColorStop(1, 'rgba(255, 246, 218, 0)')
+  ctx.fillStyle = ivory
+  ctx.fillRect(0, 0, width, height)
+
+  strokeRoundRect(ctx, 36, 36, width - 72, height - 72, 42, 'rgba(112, 73, 205, 0.72)', 5)
+  strokeRoundRect(ctx, 68, 68, width - 136, height - 136, 34, 'rgba(255, 92, 174, 0.45)', 3)
+}
+
+function drawCenteredPill(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  fill: string,
+  color: string,
+  fontSize: number,
+) {
+  fillRoundRect(ctx, x - width / 2, y - height / 2, width, height, height / 2, fill)
+  drawCanvasText(ctx, text, x, y + 1, fontSize, color, '900', 'center')
+}
+
+function drawDecorativeHeartLine(ctx: CanvasRenderingContext2D, x: number, y: number, width: number) {
+  ctx.save()
+  ctx.strokeStyle = 'rgba(188, 141, 242, 0.75)'
+  ctx.lineWidth = 4
+  ctx.setLineDash([18, 16])
+  ctx.beginPath()
+  ctx.moveTo(x - width / 2, y)
+  ctx.lineTo(x - 54, y)
+  ctx.moveTo(x + 54, y)
+  ctx.lineTo(x + width / 2, y)
+  ctx.stroke()
+  ctx.setLineDash([])
+  drawCanvasText(ctx, '♥', x, y, 34, '#b88df2', '900', 'center')
+  ctx.restore()
+}
+
+function drawCanvasText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  size: number,
+  color: string,
+  weight: string,
+  align: CanvasTextAlign,
+) {
+  ctx.save()
+  ctx.fillStyle = color
+  ctx.font = `${weight} ${size}px ${exportFontFamily()}`
+  ctx.textAlign = align
+  ctx.textBaseline = 'middle'
+  ctx.fillText(text, x, y)
+  ctx.restore()
+}
+
+function wrapCanvasText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number) {
+  if (!text) return []
+  const chunks = text.includes(' ') ? text.split(/(\s+)/).filter(Boolean) : Array.from(text)
+  const lines: string[] = []
+  let current = ''
+
+  for (const chunk of chunks) {
+    const next = current + chunk
+    if (ctx.measureText(next).width <= maxWidth || !current) {
+      if (ctx.measureText(next).width <= maxWidth) {
+        current = next
+        continue
+      }
+      const broken = breakLongCanvasText(ctx, chunk, maxWidth)
+      lines.push(...broken.slice(0, -1))
+      current = broken[broken.length - 1] ?? ''
+      continue
+    }
+    lines.push(current.trimEnd())
+    current = chunk.trimStart()
+  }
+
+  if (current.trim()) lines.push(current.trimEnd())
+  return lines
+}
+
+function breakLongCanvasText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number) {
+  const lines: string[] = []
+  let current = ''
+  for (const char of Array.from(text)) {
+    const next = current + char
+    if (ctx.measureText(next).width > maxWidth && current) {
+      lines.push(current)
+      current = char
+    } else {
+      current = next
+    }
+  }
+  if (current) lines.push(current)
+  return lines
+}
+
+function fillRoundRect(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number, fill: string) {
+  roundedRectPath(ctx, x, y, width, height, radius)
+  ctx.fillStyle = fill
+  ctx.fill()
+}
+
+function strokeRoundRect(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number, stroke: string, lineWidth: number) {
+  roundedRectPath(ctx, x, y, width, height, radius)
+  ctx.strokeStyle = stroke
+  ctx.lineWidth = lineWidth
+  ctx.stroke()
+}
+
+function roundedRectPath(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) {
+  const r = Math.min(radius, width / 2, height / 2)
+  ctx.beginPath()
+  ctx.moveTo(x + r, y)
+  ctx.lineTo(x + width - r, y)
+  ctx.quadraticCurveTo(x + width, y, x + width, y + r)
+  ctx.lineTo(x + width, y + height - r)
+  ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height)
+  ctx.lineTo(x + r, y + height)
+  ctx.quadraticCurveTo(x, y + height, x, y + height - r)
+  ctx.lineTo(x, y + r)
+  ctx.quadraticCurveTo(x, y, x + r, y)
+  ctx.closePath()
+}
+
+function canvasToPngBlob(canvas: HTMLCanvasElement) {
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('이미지 생성 실패'))), 'image/png')
+  })
+}
+
+function exportFontFamily() {
+  return '"NanumBarunGothic", "Nanum Barun Gothic", "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif'
 }
 
 async function fetchBackupResource(url: string, fallbackName: string) {
