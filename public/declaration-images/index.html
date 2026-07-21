@@ -84,6 +84,11 @@
         color: inherit;
       }
 
+      button {
+        border: 0;
+        font: inherit;
+      }
+
       .button {
         border-radius: 999px;
         background: #2f251f;
@@ -100,11 +105,63 @@
         color: #7d552e;
       }
 
+      .image-button {
+        display: block;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        background: white;
+        cursor: pointer;
+      }
+
       img {
         display: block;
         width: 100%;
         height: auto;
         border-top: 1px solid rgba(139, 94, 52, 0.08);
+      }
+
+      .modal {
+        position: fixed;
+        inset: 0;
+        z-index: 10;
+        display: none;
+        background: rgba(0, 0, 0, 0.72);
+        padding: 12px;
+      }
+
+      .modal.open {
+        display: block;
+      }
+
+      .modal-panel {
+        display: flex;
+        width: min(100%, 720px);
+        height: 100%;
+        margin: 0 auto;
+        overflow: hidden;
+        flex-direction: column;
+        border-radius: 24px;
+        background: #fffaf2;
+      }
+
+      .modal-head,
+      .modal-foot {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 12px;
+      }
+
+      .modal-body {
+        flex: 1;
+        overflow: auto;
+        background: white;
+      }
+
+      .modal-body img {
+        border-top: 0;
       }
 
       footer {
@@ -124,27 +181,110 @@
     </header>
     <main id="list"></main>
     <footer>용문교회 유치부 · 20일 보석기도</footer>
+    <div class="modal" id="modal" aria-hidden="true">
+      <div class="modal-panel">
+        <div class="modal-head">
+          <strong id="modalTitle">선포기도문</strong>
+          <button class="button secondary" type="button" id="closeModal">닫기</button>
+        </div>
+        <div class="modal-body">
+          <img id="modalImage" alt="" />
+        </div>
+        <div class="modal-foot">
+          <span style="font-size: 0.78rem; font-weight: 800; color: #8a7a68;">저장이 안 되면 이미지를 길게 눌러 저장해 주세요.</span>
+          <button class="button" type="button" id="saveModal">큰글씨 저장</button>
+        </div>
+      </div>
+    </div>
     <script>
       const list = document.querySelector('#list')
+      const modal = document.querySelector('#modal')
+      const modalTitle = document.querySelector('#modalTitle')
+      const modalImage = document.querySelector('#modalImage')
+      const closeModal = document.querySelector('#closeModal')
+      const saveModal = document.querySelector('#saveModal')
       const days = Array.from({ length: 20 }, (_, index) => String(index + 1).padStart(2, '0'))
+      let selected = null
 
       list.innerHTML = days
         .map((day) => {
-          const src = `/images/prayer-downloads/declarations/day-${day}-declaration.png`
+          const src = `/images/prayer-downloads/declarations/day-${day}-declaration.png?v=20260721-large`
           return `
             <article>
               <div class="card-head">
                 <div class="day">${Number(day)}일차 선포기도문</div>
                 <div class="actions">
-                  <a class="button secondary" href="${src}" target="_blank" rel="noopener">크게 보기</a>
-                  <a class="button" href="${src}" download="${day}-선포기도문.png">저장</a>
+                  <button class="button secondary" type="button" data-preview="${src}" data-title="${Number(day)}일차 선포기도문" data-file="${day}-선포기도문.png">크게 보기</button>
+                  <button class="button" type="button" data-save="${src}" data-file="${day}-선포기도문.png">큰글씨 저장</button>
                 </div>
               </div>
-              <a href="${src}" target="_blank" rel="noopener"><img src="${src}" alt="${Number(day)}일차 선포기도문" loading="lazy" /></a>
+              <button class="image-button" type="button" data-preview="${src}" data-title="${Number(day)}일차 선포기도문" data-file="${day}-선포기도문.png">
+                <img src="${src}" alt="${Number(day)}일차 선포기도문" loading="lazy" />
+              </button>
             </article>
           `
         })
         .join('')
+
+      list.addEventListener('click', async (event) => {
+        const preview = event.target.closest('[data-preview]')
+        const save = event.target.closest('[data-save]')
+        if (preview) {
+          selected = { src: preview.dataset.preview, file: preview.dataset.file, title: preview.dataset.title }
+          modalTitle.textContent = selected.title
+          modalImage.removeAttribute('src')
+          modal.classList.add('open')
+          modal.setAttribute('aria-hidden', 'false')
+          modalImage.src = URL.createObjectURL(await createLargeImageBlob(selected.src))
+        }
+        if (save) {
+          await saveLargeImage(save.dataset.save, save.dataset.file)
+        }
+      })
+
+      closeModal.addEventListener('click', () => {
+        modal.classList.remove('open')
+        modal.setAttribute('aria-hidden', 'true')
+        if (modalImage.src.startsWith('blob:')) URL.revokeObjectURL(modalImage.src)
+        modalImage.removeAttribute('src')
+      })
+
+      saveModal.addEventListener('click', async () => {
+        if (selected) await saveLargeImage(selected.src, selected.file)
+      })
+
+      async function saveLargeImage(src, fileName) {
+        const blob = await createLargeImageBlob(src)
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = fileName
+        link.click()
+        URL.revokeObjectURL(url)
+      }
+
+      async function createLargeImageBlob(src) {
+        const image = await loadImage(src)
+        const cropX = Math.round(image.naturalWidth * 0.075)
+        const cropY = Math.round(image.naturalWidth * 0.075)
+        const cropWidth = image.naturalWidth - cropX * 2
+        const cropHeight = image.naturalHeight - cropY * 2
+        const canvas = document.createElement('canvas')
+        canvas.width = 1080
+        canvas.height = Math.round((cropHeight / cropWidth) * canvas.width)
+        const ctx = canvas.getContext('2d')
+        ctx.drawImage(image, cropX, cropY, cropWidth, cropHeight, 0, 0, canvas.width, canvas.height)
+        return new Promise((resolve, reject) => canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('fail'))), 'image/png'))
+      }
+
+      function loadImage(src) {
+        return new Promise((resolve, reject) => {
+          const image = new Image()
+          image.onload = () => resolve(image)
+          image.onerror = reject
+          image.src = src
+        })
+      }
     </script>
   </body>
 </html>

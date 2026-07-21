@@ -142,7 +142,19 @@ function getDevCompletionLimit() {
   return Number.isInteger(dayLimit) ? dayLimit : null
 }
 
+type PublicDownloadMode = 'prayers' | 'declarations'
+
+function getPublicDownloadMode(): PublicDownloadMode | null {
+  if (typeof window === 'undefined') return null
+  if (window.location.pathname.startsWith('/prayer-images')) return 'prayers'
+  if (window.location.pathname.startsWith('/declaration-images')) return 'declarations'
+  return null
+}
+
 export default function App() {
+  const publicDownloadMode = getPublicDownloadMode()
+  if (publicDownloadMode) return <PublicPrayerImageDownload mode={publicDownloadMode} />
+
   const [state, setState] = useState<AppState>(() => loadState())
   const [currentId, setCurrentId] = useState<string | null>(() => getCurrentParticipantId())
   const [screen, setScreen] = useState<Screen>(() => (getCurrentParticipantId() ? 'home' : 'start'))
@@ -455,6 +467,135 @@ export default function App() {
         />
       )}
       {finishCeremony && <FinishCeremonyOverlay ceremony={finishCeremony} />}
+    </div>
+  )
+}
+
+function PublicPrayerImageDownload({ mode }: { mode: PublicDownloadMode }) {
+  const [preview, setPreview] = useState<{ day: string; title: string; src: string; fileName: string } | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [busyDay, setBusyDay] = useState<string | null>(null)
+  const isDeclaration = mode === 'declarations'
+  const title = isDeclaration ? '20일 보석기도 선포기도문' : '20일 보석기도 기도문'
+  const description = '이미지를 눌러 크게 보고, 큰글씨 저장 버튼으로 소장해 주세요.'
+  const label = isDeclaration ? '선포기도문' : '기도문'
+  const folder = isDeclaration ? 'declarations' : 'prayers'
+  const suffix = isDeclaration ? 'declaration' : 'prayer'
+  const version = '20260721-large'
+  const days = Array.from({ length: 20 }, (_, index) => String(index + 1).padStart(2, '0'))
+
+  useEffect(() => {
+    if (!preview) {
+      setPreviewUrl(null)
+      return
+    }
+
+    let alive = true
+    let objectUrl: string | null = null
+    setPreviewUrl(null)
+    createLargePublicPrayerImageBlob(preview.src)
+      .then((blob) => {
+        if (!alive) return
+        objectUrl = URL.createObjectURL(blob)
+        setPreviewUrl(objectUrl)
+      })
+      .catch(() => {
+        if (alive) setPreviewUrl(preview.src)
+      })
+
+    return () => {
+      alive = false
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
+  }, [preview])
+
+  function getImage(day: string) {
+    const src = `/images/prayer-downloads/${folder}/day-${day}-${suffix}.png?v=${version}`
+    return {
+      day,
+      src,
+      title: `${Number(day)}일차 ${label}`,
+      fileName: `${day}-${label}.png`,
+    }
+  }
+
+  async function saveImage(item: { day: string; src: string; fileName: string }) {
+    try {
+      setBusyDay(item.day)
+      const blob = await createLargePublicPrayerImageBlob(item.src)
+      downloadBlob(blob, item.fileName)
+    } catch {
+      window.alert('이미지를 저장하지 못했어요. 이미지를 크게 연 뒤 길게 눌러 저장해 주세요.')
+    } finally {
+      setBusyDay(null)
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-[radial-gradient(circle_at_8%_0%,rgba(219,199,255,0.62),transparent_34%),radial-gradient(circle_at_100%_4%,rgba(255,246,218,0.88),transparent_34%),#fffaf2] text-jewel-ink">
+      <header className="sticky top-0 z-20 border-b border-jewel-brown/15 bg-[#fffaf2]/95 px-4 py-4 text-center shadow-sm backdrop-blur">
+        <h1 className="text-[1.42rem] font-black">{title}</h1>
+        <p className="mx-auto mt-2 max-w-md text-sm font-extrabold leading-relaxed text-jewel-brown">{description}</p>
+      </header>
+      <main className="mx-auto grid w-full max-w-3xl gap-5 px-3 py-5 pb-12">
+        {days.map((day) => {
+          const item = getImage(day)
+          return (
+            <article key={day} className="overflow-hidden rounded-[22px] border border-jewel-brown/15 bg-white/90 shadow-card">
+              <div className="flex items-center justify-between gap-2 px-3 py-3">
+                <h2 className="text-base font-black text-jewel-brown">{item.title}</h2>
+                <div className="flex shrink-0 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPreview(item)}
+                    className="rounded-full bg-jewel-cream px-3 py-2 text-xs font-black text-jewel-brown"
+                  >
+                    크게 보기
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => saveImage(item)}
+                    disabled={busyDay === day}
+                    className="rounded-full bg-jewel-ink px-3 py-2 text-xs font-black text-white disabled:opacity-60"
+                  >
+                    {busyDay === day ? '준비 중' : '큰글씨 저장'}
+                  </button>
+                </div>
+              </div>
+              <button type="button" onClick={() => setPreview(item)} className="block w-full border-t border-jewel-brown/10 bg-white p-0">
+                <img src={item.src} alt={item.title} loading="lazy" className="block h-auto w-full" />
+              </button>
+            </article>
+          )
+        })}
+      </main>
+      <footer className="px-4 pb-8 text-center text-xs font-extrabold leading-relaxed text-stone-500">용문교회 유치부 · 20일 보석기도</footer>
+
+      {preview && (
+        <div className="fixed inset-0 z-50 bg-black/70 p-3">
+          <div className="mx-auto flex h-full max-w-3xl flex-col overflow-hidden rounded-3xl bg-[#fffaf2] shadow-2xl">
+            <div className="flex items-center justify-between gap-3 border-b border-jewel-brown/15 px-4 py-3">
+              <h2 className="font-black text-jewel-brown">{preview.title}</h2>
+              <button type="button" onClick={() => setPreview(null)} className="rounded-full bg-white px-3 py-2 text-sm font-black text-jewel-ink shadow-sm">
+                닫기
+              </button>
+            </div>
+            <div className="flex-1 overflow-auto bg-white">
+              {previewUrl ? (
+                <img src={previewUrl} alt={`${preview.title} 크게 보기`} className="block h-auto w-full" />
+              ) : (
+                <div className="flex min-h-80 items-center justify-center text-sm font-black text-jewel-brown">큰글씨 이미지 준비 중...</div>
+              )}
+            </div>
+            <div className="grid gap-2 border-t border-jewel-brown/15 p-3">
+              <button type="button" onClick={() => saveImage(preview)} className="rounded-2xl bg-jewel-ink px-4 py-3 text-sm font-black text-white">
+                이 이미지 저장하기
+              </button>
+              <p className="text-center text-xs font-bold text-stone-500">저장이 안 되면 이미지를 길게 눌러 저장해 주세요.</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -2207,6 +2348,28 @@ function downloadBlob(blob: Blob, fileName: string) {
   link.download = fileName
   link.click()
   URL.revokeObjectURL(url)
+}
+
+async function createLargePublicPrayerImageBlob(src: string) {
+  const image = await loadPublicDownloadImage(src)
+  const cropX = Math.round(image.naturalWidth * 0.075)
+  const cropY = Math.round(image.naturalWidth * 0.075)
+  const cropWidth = image.naturalWidth - cropX * 2
+  const cropHeight = image.naturalHeight - cropY * 2
+  const outputWidth = 1080
+  const outputHeight = Math.round((cropHeight / cropWidth) * outputWidth)
+  const { canvas, ctx } = createExportCanvas(outputWidth, outputHeight)
+  ctx.drawImage(image, cropX, cropY, cropWidth, cropHeight, 0, 0, outputWidth, outputHeight)
+  return canvasToPngBlob(canvas)
+}
+
+function loadPublicDownloadImage(src: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image()
+    image.onload = () => resolve(image)
+    image.onerror = () => reject(new Error('이미지를 불러오지 못했어요.'))
+    image.src = src
+  })
 }
 
 function AdminPrayerUpload({ state, today, onRefresh }: { state: AppState; today: PrayerDay; onRefresh: () => void }) {

@@ -9,6 +9,13 @@ export default defineConfig({
       registerType: 'autoUpdate',
       injectRegister: null,
       includeAssets: ['icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png', 'icons/apple-touch-icon.png'],
+      workbox: {
+        navigateFallbackDenylist: [
+          /^\/prayer-images\//,
+          /^\/declaration-images\//,
+          /^\/images\/prayer-downloads\//,
+        ],
+      },
       manifest: {
         name: '용문교회 유치부 20일 보석기도',
         short_name: '20일 보석기도',
