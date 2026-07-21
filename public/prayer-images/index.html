@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>20일 보석기도 기도문 받기</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background:
+          radial-gradient(circle at 8% 0%, rgba(219, 199, 255, 0.62), transparent 34%),
+          radial-gradient(circle at 100% 4%, rgba(255, 246, 218, 0.88), transparent 34%),
+          #fffaf2;
+        color: #2f251f;
+        font-family: "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+      }
+
+      header {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        border-bottom: 1px solid rgba(139, 94, 52, 0.16);
+        background: rgba(255, 250, 242, 0.94);
+        backdrop-filter: blur(14px);
+        padding: 18px 16px;
+        text-align: center;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 1.42rem;
+        font-weight: 950;
+      }
+
+      header p {
+        margin: 8px auto 0;
+        max-width: 28rem;
+        color: #7d5a39;
+        font-size: 0.92rem;
+        font-weight: 800;
+        line-height: 1.5;
+      }
+
+      main {
+        display: grid;
+        gap: 18px;
+        width: min(100%, 720px);
+        margin: 0 auto;
+        padding: 18px 14px 40px;
+      }
+
+      article {
+        overflow: hidden;
+        border: 1px solid rgba(139, 94, 52, 0.14);
+        border-radius: 22px;
+        background: rgba(255, 255, 255, 0.88);
+        box-shadow: 0 14px 34px rgba(82, 58, 30, 0.1);
+      }
+
+      .card-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 14px 14px 12px;
+      }
+
+      .day {
+        color: #8b5e34;
+        font-size: 1rem;
+        font-weight: 950;
+      }
+
+      .actions {
+        display: flex;
+        gap: 8px;
+      }
+
+      a {
+        color: inherit;
+      }
+
+      .button {
+        border-radius: 999px;
+        background: #2f251f;
+        color: #fff;
+        padding: 9px 13px;
+        text-decoration: none;
+        font-size: 0.82rem;
+        font-weight: 950;
+        white-space: nowrap;
+      }
+
+      .button.secondary {
+        background: #f3eadc;
+        color: #7d552e;
+      }
+
+      img {
+        display: block;
+        width: 100%;
+        height: auto;
+        border-top: 1px solid rgba(139, 94, 52, 0.08);
+      }
+
+      footer {
+        padding: 0 16px 30px;
+        color: #8a7a68;
+        text-align: center;
+        font-size: 0.82rem;
+        font-weight: 800;
+        line-height: 1.45;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>20일 보석기도 기도문</h1>
+      <p>이미지를 누르거나 저장 버튼을 눌러 소장해 주세요. 휴대폰에서는 이미지가 열린 뒤 길게 눌러 저장할 수도 있어요.</p>
+    </header>
+    <main id="list"></main>
+    <footer>용문교회 유치부 · 20일 보석기도</footer>
+    <script>
+      const list = document.querySelector('#list')
+      const days = Array.from({ length: 20 }, (_, index) => String(index + 1).padStart(2, '0'))
+
+      list.innerHTML = days
+        .map((day) => {
+          const src = `/images/prayer-downloads/prayers/day-${day}-prayer.png`
+          return `
+            <article>
+              <div class="card-head">
+                <div class="day">${Number(day)}일차 기도문</div>
+                <div class="actions">
+                  <a class="button secondary" href="${src}" target="_blank" rel="noopener">크게 보기</a>
+                  <a class="button" href="${src}" download="${day}-기도문.png">저장</a>
+                </div>
+              </div>
+              <a href="${src}" target="_blank" rel="noopener"><img src="${src}" alt="${Number(day)}일차 기도문" loading="lazy" /></a>
+            </article>
+          `
+        })
+        .join('')
+    </script>
+  </body>
+</html>
