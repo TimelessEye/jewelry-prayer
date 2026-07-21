@@ -227,8 +227,11 @@
         .join('')
 
       list.addEventListener('click', async (event) => {
-        const preview = event.target.closest('[data-preview]')
-        const save = event.target.closest('[data-save]')
+        event.preventDefault()
+        const target = event.target instanceof Element ? event.target : null
+        const preview = target?.closest('[data-preview]')
+        const save = target?.closest('[data-save]')
+        if (!preview && !save) return
         if (preview) {
           selected = { src: preview.dataset.preview, file: preview.dataset.file, title: preview.dataset.title }
           modalTitle.textContent = selected.title
