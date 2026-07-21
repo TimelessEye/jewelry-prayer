@@ -1,6 +1,15 @@
 {
   "headers": [
     {
+      "source": "/prayer-pairs/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, max-age=0"
+        }
+      ]
+    },
+    {
       "source": "/prayer-images/(.*)",
       "headers": [
         {

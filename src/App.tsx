@@ -142,10 +142,11 @@ function getDevCompletionLimit() {
   return Number.isInteger(dayLimit) ? dayLimit : null
 }
 
-type PublicDownloadMode = 'prayers' | 'declarations'
+type PublicDownloadMode = 'pairs' | 'prayers' | 'declarations'
 
 function getPublicDownloadMode(): PublicDownloadMode | null {
   if (typeof window === 'undefined') return null
+  if (window.location.pathname.startsWith('/prayer-pairs')) return 'pairs'
   if (window.location.pathname.startsWith('/prayer-images')) return 'prayers'
   if (window.location.pathname.startsWith('/declaration-images')) return 'declarations'
   return null
@@ -153,6 +154,7 @@ function getPublicDownloadMode(): PublicDownloadMode | null {
 
 export default function App() {
   const publicDownloadMode = getPublicDownloadMode()
+  if (publicDownloadMode === 'pairs') return <PublicPrayerPairDownload />
   if (publicDownloadMode) return <PublicPrayerImageDownload mode={publicDownloadMode} />
 
   const [state, setState] = useState<AppState>(() => loadState())
@@ -570,6 +572,103 @@ function PublicPrayerImageDownload({ mode }: { mode: PublicDownloadMode }) {
               ) : (
                 <div className="flex min-h-80 items-center justify-center text-sm font-black text-jewel-brown">큰글씨 이미지 준비 중...</div>
               )}
+            </div>
+            <div className="grid gap-2 border-t border-jewel-brown/15 p-3">
+              <button type="button" onClick={() => saveImage(preview)} className="rounded-2xl bg-jewel-ink px-4 py-3 text-sm font-black text-white">
+                이 이미지 저장하기
+              </button>
+              <p className="text-center text-xs font-bold text-stone-500">저장이 안 되면 이미지를 길게 눌러 저장해 주세요.</p>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function PublicPrayerPairDownload() {
+  const [preview, setPreview] = useState<{ title: string; src: string; fileName: string } | null>(null)
+  const days = Array.from({ length: 20 }, (_, index) => String(index + 1).padStart(2, '0'))
+
+  function getPair(day: string) {
+    return {
+      prayer: {
+        src: `/downloads/20260721-large-v2/prayers/day-${day}-prayer-large.png?v=20260721-large-v2`,
+        title: `${Number(day)}일차 기도문`,
+        fileName: `${day}-1-기도문-큰글씨.png`,
+      },
+      declaration: {
+        src: `/downloads/20260721-large-v2/declarations/day-${day}-declaration-large.png?v=20260721-large-v2`,
+        title: `${Number(day)}일차 선포기도문`,
+        fileName: `${day}-2-선포기도문-큰글씨.png`,
+      },
+    }
+  }
+
+  function saveImage(item: { src: string; fileName: string }) {
+    downloadFileFromUrl(item.src, item.fileName)
+  }
+
+  return (
+    <div className="min-h-screen bg-[radial-gradient(circle_at_8%_0%,rgba(219,199,255,0.62),transparent_34%),radial-gradient(circle_at_100%_4%,rgba(255,246,218,0.88),transparent_34%),#fffaf2] text-jewel-ink">
+      <header className="sticky top-0 z-20 border-b border-jewel-brown/15 bg-[#fffaf2]/95 px-4 py-4 text-center shadow-sm backdrop-blur">
+        <h1 className="text-[1.42rem] font-black">20일 보석기도 큰글씨 자료</h1>
+        <p className="mx-auto mt-2 max-w-md text-sm font-extrabold leading-relaxed text-jewel-brown">
+          날짜별로 기도문과 선포기도문을 짝꿍으로 저장해 주세요.
+        </p>
+      </header>
+      <main className="mx-auto grid w-full max-w-4xl gap-5 px-3 py-5 pb-12">
+        {days.map((day) => {
+          const pair = getPair(day)
+          return (
+            <article key={day} className="overflow-hidden rounded-[22px] border border-jewel-brown/15 bg-white/90 shadow-card">
+              <div className="border-b border-jewel-brown/10 px-4 py-3">
+                <h2 className="text-lg font-black text-jewel-brown">{Number(day)}일차</h2>
+              </div>
+              <div className="grid gap-3 p-3 sm:grid-cols-2">
+                {[pair.prayer, pair.declaration].map((item) => (
+                  <section key={item.fileName} className="overflow-hidden rounded-2xl border border-jewel-brown/10 bg-white">
+                    <div className="flex items-center justify-between gap-2 px-3 py-3">
+                      <h3 className="text-sm font-black text-jewel-brown">{item.title}</h3>
+                      <div className="flex shrink-0 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setPreview(item)}
+                          className="rounded-full bg-jewel-cream px-3 py-2 text-xs font-black text-jewel-brown"
+                        >
+                          크게 보기
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => saveImage(item)}
+                          className="rounded-full bg-jewel-ink px-3 py-2 text-xs font-black text-white"
+                        >
+                          저장
+                        </button>
+                      </div>
+                    </div>
+                    <button type="button" onClick={() => setPreview(item)} className="block w-full border-t border-jewel-brown/10 bg-white p-0">
+                      <img src={item.src} alt={item.title} loading="lazy" className="block h-auto w-full" />
+                    </button>
+                  </section>
+                ))}
+              </div>
+            </article>
+          )
+        })}
+      </main>
+
+      {preview && (
+        <div className="fixed inset-0 z-50 bg-black/70 p-3">
+          <div className="mx-auto flex h-full max-w-3xl flex-col overflow-hidden rounded-3xl bg-[#fffaf2] shadow-2xl">
+            <div className="flex items-center justify-between gap-3 border-b border-jewel-brown/15 px-4 py-3">
+              <h2 className="font-black text-jewel-brown">{preview.title}</h2>
+              <button type="button" onClick={() => setPreview(null)} className="rounded-full bg-white px-3 py-2 text-sm font-black text-jewel-ink shadow-sm">
+                닫기
+              </button>
+            </div>
+            <div className="flex-1 overflow-auto bg-white">
+              <img src={preview.src} alt={`${preview.title} 크게 보기`} className="block h-auto w-full" />
             </div>
             <div className="grid gap-2 border-t border-jewel-brown/15 p-3">
               <button type="button" onClick={() => saveImage(preview)} className="rounded-2xl bg-jewel-ink px-4 py-3 text-sm font-black text-white">

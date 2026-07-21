@@ -11,9 +11,11 @@ export default defineConfig({
       includeAssets: ['icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png', 'icons/apple-touch-icon.png'],
       workbox: {
         navigateFallbackDenylist: [
+          /^\/prayer-pairs\//,
           /^\/prayer-images\//,
           /^\/declaration-images\//,
           /^\/images\/prayer-downloads\//,
+          /^\/downloads\//,
         ],
       },
       manifest: {
