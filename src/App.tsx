@@ -472,7 +472,7 @@ export default function App() {
 }
 
 function PublicPrayerImageDownload({ mode }: { mode: PublicDownloadMode }) {
-  const [preview, setPreview] = useState<{ day: string; title: string; src: string; fileName: string } | null>(null)
+  const [preview, setPreview] = useState<{ day: string; title: string; src: string; largeSrc: string; fileName: string } | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [busyDay, setBusyDay] = useState<string | null>(null)
   const isDeclaration = mode === 'declarations'
@@ -489,41 +489,25 @@ function PublicPrayerImageDownload({ mode }: { mode: PublicDownloadMode }) {
       setPreviewUrl(null)
       return
     }
-
-    let alive = true
-    let objectUrl: string | null = null
-    setPreviewUrl(null)
-    createLargePublicPrayerImageBlob(preview.src)
-      .then((blob) => {
-        if (!alive) return
-        objectUrl = URL.createObjectURL(blob)
-        setPreviewUrl(objectUrl)
-      })
-      .catch(() => {
-        if (alive) setPreviewUrl(preview.src)
-      })
-
-    return () => {
-      alive = false
-      if (objectUrl) URL.revokeObjectURL(objectUrl)
-    }
+    setPreviewUrl(preview.largeSrc)
   }, [preview])
 
   function getImage(day: string) {
     const src = `/images/prayer-downloads/${folder}/day-${day}-${suffix}.png?v=${version}`
+    const largeSrc = `/downloads/20260721-large-v2/${folder}/day-${day}-${suffix}-large.png?v=20260721-large-v2`
     return {
       day,
       src,
+      largeSrc,
       title: `${Number(day)}일차 ${label}`,
-      fileName: `${day}-${label}.png`,
+      fileName: `${day}-${label}-큰글씨.png`,
     }
   }
 
-  async function saveImage(item: { day: string; src: string; fileName: string }) {
+  async function saveImage(item: { day: string; src: string; largeSrc: string; fileName: string }) {
     try {
       setBusyDay(item.day)
-      const blob = await createLargePublicPrayerImageBlob(item.src)
-      downloadBlob(blob, item.fileName)
+      downloadFileFromUrl(item.largeSrc, item.fileName)
     } catch {
       window.alert('이미지를 저장하지 못했어요. 이미지를 크게 연 뒤 길게 눌러 저장해 주세요.')
     } finally {
@@ -2348,6 +2332,13 @@ function downloadBlob(blob: Blob, fileName: string) {
   link.download = fileName
   link.click()
   URL.revokeObjectURL(url)
+}
+
+function downloadFileFromUrl(url: string, fileName: string) {
+  const link = document.createElement('a')
+  link.href = url
+  link.download = fileName
+  link.click()
 }
 
 async function createLargePublicPrayerImageBlob(src: string) {
