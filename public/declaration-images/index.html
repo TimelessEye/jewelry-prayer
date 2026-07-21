@@ -45,18 +45,6 @@
         line-height: 1.5;
       }
 
-      .refresh-note {
-        margin: 8px auto 0;
-        max-width: 28rem;
-        border-radius: 16px;
-        background: #fff4d6;
-        padding: 8px 12px;
-        color: #7d552e;
-        font-size: 0.8rem;
-        font-weight: 900;
-        line-height: 1.45;
-      }
-
       main {
         display: grid;
         gap: 18px;
@@ -190,7 +178,6 @@
     <header>
       <h1>20일 보석기도 선포기도문</h1>
       <p>이미지를 누르거나 저장 버튼을 눌러 소장해 주세요. 휴대폰에서는 이미지가 열린 뒤 길게 눌러 저장할 수도 있어요.</p>
-      <div class="refresh-note">화면이 예전처럼 보이면 손가락으로 아래로 당겨 새로고침해 주세요.</div>
     </header>
     <main id="list"></main>
     <footer>용문교회 유치부 · 20일 보석기도</footer>
@@ -234,7 +221,7 @@
                 </div>
               </div>
               <button class="image-button" type="button" data-preview="${largeSrc}" data-title="${Number(day)}일차 선포기도문" data-file="${file}">
-                <img src="${src}" alt="${Number(day)}일차 선포기도문" loading="lazy" />
+                <img src="${largeSrc}" alt="${Number(day)}일차 선포기도문" loading="lazy" />
               </button>
             </article>
           `

@@ -337,7 +337,6 @@ export default function App() {
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,#fff4d8_0,#fffaf1_32%,#f4efe9_100%)] text-jewel-ink">
       <InAppNotice />
       <InstallNotice />
-      <LatestRefreshNotice />
       <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 py-4 sm:px-6 lg:px-8">
         <TopBar
           participant={participant}
@@ -550,7 +549,7 @@ function PublicPrayerImageDownload({ mode }: { mode: PublicDownloadMode }) {
                 </div>
               </div>
               <button type="button" onClick={() => setPreview(item)} className="block w-full border-t border-jewel-brown/10 bg-white p-0">
-                <img src={item.src} alt={item.title} loading="lazy" className="block h-auto w-full" />
+                <img src={item.largeSrc} alt={item.title} loading="lazy" className="block h-auto w-full" />
               </button>
             </article>
           )
@@ -614,9 +613,6 @@ function PublicPrayerPairDownload() {
     <div className="min-h-screen bg-[radial-gradient(circle_at_8%_0%,rgba(219,199,255,0.62),transparent_34%),radial-gradient(circle_at_100%_4%,rgba(255,246,218,0.88),transparent_34%),#fffaf2] text-jewel-ink">
       <header className="sticky top-0 z-20 border-b border-jewel-brown/15 bg-[#fffaf2]/95 px-4 py-4 text-center shadow-sm backdrop-blur">
         <h1 className="text-[1.42rem] font-black">20일 보석기도 큰글씨 자료</h1>
-        <p className="mx-auto mt-2 max-w-md rounded-2xl bg-amber-50 px-3 py-2 text-xs font-extrabold leading-relaxed text-amber-900">
-          화면이 예전처럼 보이면 손가락으로 아래로 당겨 새로고침해 주세요.
-        </p>
       </header>
       <main className="mx-auto grid w-full max-w-4xl gap-5 px-3 py-5 pb-12">
         {days.map((day) => {
@@ -626,7 +622,7 @@ function PublicPrayerPairDownload() {
               <div className="border-b border-jewel-brown/10 px-4 py-3">
                 <h2 className="text-lg font-black text-jewel-brown">{Number(day)}일차</h2>
               </div>
-              <div className="grid gap-3 p-3 sm:grid-cols-2">
+              <div className="grid gap-3 p-3">
                 {[pair.prayer, pair.declaration].map((item) => (
                   <section key={item.fileName} className="overflow-hidden rounded-2xl border border-jewel-brown/10 bg-white">
                     <div className="flex items-center justify-between gap-2 px-3 py-3">
@@ -3309,14 +3305,6 @@ function InAppNotice() {
       <button type="button" onClick={() => setClosed(true)} aria-label="닫기" className="px-1">
         ×
       </button>
-    </div>
-  )
-}
-
-function LatestRefreshNotice() {
-  return (
-    <div className="border-y border-amber-200/70 bg-amber-50 px-4 py-2 text-center text-[0.78rem] font-black leading-relaxed text-amber-900">
-      화면이 예전처럼 보이면 손가락으로 아래로 당겨 새로고침해 주세요.
     </div>
   )
 }
